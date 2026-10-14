@@ -25,7 +25,7 @@
     text-align:center; padding:20px; background:#05081acc; backdrop-filter:blur(3px); }
   .overlay.hidden { display:none; }
   .overlay h2 { font-size:clamp(28px,6vw,54px); margin:0 0 10px; text-transform:uppercase; text-shadow:0 0 18px var(--pink); }
-  .overlay p { max-width:470px; line-height:1.5; color:#d8defe; margin:5px 0 18px; }
+  .overlay p { max-width:520px; line-height:1.5; color:#d8defe; margin:5px 0 18px; }
   button { border:0; cursor:pointer; color:#071020; font-weight:900; letter-spacing:1px; text-transform:uppercase;
     background:linear-gradient(135deg,var(--cyan),#8effc8); padding:13px 22px; border-radius:9px;
     box-shadow:0 0 17px #32f5ff66; transition:transform .12s,filter .12s; }
@@ -47,30 +47,31 @@
 <div class="shell">
   <header>
     <h1>Geometrical <span>Dash</span></h1>
-    <div class="chip">NEON RUNNER · V1.0</div>
+    <div class="chip">MULTI-MODE · CUBE / SHIP / WAVE</div>
   </header>
   <div class="game-wrap">
     <canvas id="game" width="960" height="540" aria-label="Geometrical Dash game"></canvas>
     <div class="overlay" id="overlay">
       <h2 id="overlayTitle">Ready?</h2>
-      <p id="overlayText">Jump over spikes and blocks. One mistake ends the run. How far can you get?</p>
+      <p id="overlayText">Cube jumps. Ship flies (hold to rise, release to fall). Wave zigzags at exact 45°. Pass through colored portals to change mode. Clear the full level!</p>
       <button id="mainButton">Start Game</button>
     </div>
   </div>
   <div class="hud">
     <div class="stat">DISTANCE <strong id="score">0</strong>m</div>
     <div class="progress" aria-label="Progress"><div class="progress-fill" id="progress"></div></div>
-    <div class="stat">BEST <strong id="best">0</strong>m</div>
-    <div class="stat">SPEED <strong id="speed">1.0x</strong></div>
+    <div class="stat">BEST <strong id="best">0</strong>%</div>
+    <div class="stat">MODE <strong id="modeLabel">CUBE</strong></div>
   </div>
   <div class="controls">
-    <div>JUMP: <kbd>SPACE</kbd> <kbd>W</kbd> <kbd>↑</kbd> or tap the game</div>
+    <div>INPUT: <kbd>SPACE</kbd> <kbd>W</kbd> <kbd>↑</kbd> or hold/tap · Mode changes via portals</div>
     <div class="right"><button class="small-btn" id="pauseButton">Pause</button><button class="small-btn" id="soundButton">Sound: On</button></div>
   </div>
 </div>
 <script>
 (() => {
   "use strict";
+
   const canvas = document.getElementById("game");
   const ctx = canvas.getContext("2d");
   const overlay = document.getElementById("overlay");
@@ -79,213 +80,769 @@
   const mainButton = document.getElementById("mainButton");
   const scoreEl = document.getElementById("score");
   const bestEl = document.getElementById("best");
-  const speedEl = document.getElementById("speed");
+  const modeLabel = document.getElementById("modeLabel");
   const progressEl = document.getElementById("progress");
   const pauseButton = document.getElementById("pauseButton");
   const soundButton = document.getElementById("soundButton");
 
-  const W = canvas.width, H = canvas.height, groundY = 430;
-  const player = { x:150, y:groundY-34, size:34, vy:0, angle:0, onGround:true };
-  let obstacles = [], particles = [], stars = [], distance = 0, speed = 340;
-  let state = "ready", lastTime = 0, spawnDistance = 420, runTime = 0;
-  let soundOn = true, audioCtx = null, best = 0;
-  try { best = Number(localStorage.getItem("geometricalDashBest") || 0); } catch(e) {}
-  bestEl.textContent = best;
-  for(let i=0;i<75;i++) stars.push({x:Math.random()*W,y:Math.random()*(groundY-30),r:Math.random()*2+0.4,tw:Math.random()*6.28});
+  const W = canvas.width;
+  const H = canvas.height;
+  const GROUND_Y = 430;
+  const CEILING_Y = 40;
+  const PLAYER_SIZE = 34;
+  const PLAYER_X = 150;
 
-  function beep(freq=500,duration=.07,type="square",volume=.04) {
-    if(!soundOn) return;
+  // Physics tuned from Geometry Dash research
+  const CUBE_GRAVITY = 2400;
+  const CUBE_JUMP = -780;
+  const SHIP_GRAVITY = 1550;
+  const SHIP_THRUST = -2100;
+  const SHIP_MAX_VY = 880;
+  const WAVE_BASE_VY = 460; // matches horizontal for ~45°
+  const BASE_SPEED = 400;
+  const MAX_SPEED = 530;
+
+  const player = {
+    x: PLAYER_X,
+    y: GROUND_Y - PLAYER_SIZE,
+    size: PLAYER_SIZE,
+    vy: 0,
+    angle: 0,
+    onGround: true,
+    mode: "cube",
+    rotating: false
+  };
+
+  // Fixed level with mode portals
+  const LEVEL = [
+    // CUBE section
+    { type: "spike", x: 700 },
+    { type: "spike", x: 950 },
+    { type: "spikes", x: 1250, count: 2 },
+    { type: "block", x: 1600 },
+    { type: "spike", x: 1850 },
+    { type: "spikes", x: 2150, count: 2 },
+    { type: "block", x: 2500 },
+    { type: "spike", x: 2750 },
+    { type: "spikes", x: 3000, count: 3 },
+    { type: "block", x: 3450 },
+
+    // → SHIP
+    { type: "portalShip", x: 3800 },
+
+    // SHIP section
+    { type: "spike", x: 4200 },
+    { type: "spikes", x: 4500, count: 2 },
+    { type: "block", x: 4900 },
+    { type: "spike", x: 5200 },
+    { type: "spikes", x: 5500, count: 3 },
+    { type: "blockTall", x: 5950 },
+    { type: "spike", x: 6300 },
+    { type: "spikes", x: 6600, count: 2 },
+    { type: "block", x: 7000 },
+    { type: "spike", x: 7300 },
+    { type: "spikes", x: 7600, count: 2 },
+    { type: "blockTall", x: 8000 },
+
+    // → WAVE
+    { type: "portalWave", x: 8400 },
+
+    // WAVE section (tighter)
+    { type: "spike", x: 8800 },
+    { type: "spikes", x: 9100, count: 2 },
+    { type: "block", x: 9500 },
+    { type: "spikes", x: 9850, count: 3 },
+    { type: "blockTall", x: 10300 },
+    { type: "spike", x: 10650 },
+    { type: "spikes", x: 10950, count: 2 },
+    { type: "block", x: 11350 },
+    { type: "spikes", x: 11700, count: 3 },
+    { type: "blockTall", x: 12150 },
+    { type: "spike", x: 12500 },
+    { type: "spikes", x: 12800, count: 2 },
+
+    // → CUBE
+    { type: "portalCube", x: 13200 },
+
+    // Final cube challenge
+    { type: "spikes", x: 13600, count: 3 },
+    { type: "block", x: 14050 },
+    { type: "spike", x: 14350 },
+    { type: "spikes", x: 14650, count: 2 },
+    { type: "blockTall", x: 15050 },
+    { type: "spikes", x: 15400, count: 3 },
+    { type: "block", x: 15850 },
+    { type: "spike", x: 16150 },
+    { type: "spikes", x: 16450, count: 2 },
+    { type: "block", x: 16850 },
+    { type: "spikes", x: 17200, count: 4 },
+    { type: "blockTall", x: 17700 },
+    { type: "spikes", x: 18100, count: 2 },
+    { type: "block", x: 18450 },
+
+    { type: "finish", x: 19000 }
+  ];
+
+  const LEVEL_LENGTH = 19300;
+
+  let obstacles = [];
+  let particles = [];
+  let stars = [];
+  let distance = 0;
+  let speed = BASE_SPEED;
+  let state = "ready";
+  let lastTime = 0;
+  let runTime = 0;
+  let soundOn = true;
+  let audioCtx = null;
+  let best = 0;
+  let inputHeld = false;
+
+  try { best = Number(localStorage.getItem("geometricalDashBest") || 0); } catch (e) {}
+  bestEl.textContent = best + "%";
+
+  for (let i = 0; i < 80; i++) {
+    stars.push({
+      x: Math.random() * W,
+      y: Math.random() * (GROUND_Y - 50) + 20,
+      r: Math.random() * 2 + 0.4,
+      tw: Math.random() * Math.PI * 2
+    });
+  }
+
+  function beep(freq = 500, duration = 0.07, type = "square", volume = 0.04) {
+    if (!soundOn) return;
     try {
       audioCtx ||= new (window.AudioContext || window.webkitAudioContext)();
-      if(audioCtx.state==="suspended") audioCtx.resume();
-      const osc=audioCtx.createOscillator(), gain=audioCtx.createGain();
-      osc.type=type; osc.frequency.value=freq; gain.gain.value=volume;
-      gain.gain.exponentialRampToValueAtTime(.001,audioCtx.currentTime+duration);
-      osc.connect(gain); gain.connect(audioCtx.destination);
-      osc.start(); osc.stop(audioCtx.currentTime+duration);
-    } catch(e) {}
+      if (audioCtx.state === "suspended") audioCtx.resume();
+      const osc = audioCtx.createOscillator();
+      const gain = audioCtx.createGain();
+      osc.type = type;
+      osc.frequency.value = freq;
+      gain.gain.value = volume;
+      gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + duration);
+      osc.connect(gain);
+      gain.connect(audioCtx.destination);
+      osc.start();
+      osc.stop(audioCtx.currentTime + duration);
+    } catch (e) {}
   }
-  function showOverlay(title,text,buttonText) {
-    overlayTitle.textContent=title; overlayText.textContent=text; mainButton.textContent=buttonText;
+
+  function showOverlay(title, text, buttonText) {
+    overlayTitle.textContent = title;
+    overlayText.textContent = text;
+    mainButton.textContent = buttonText;
     overlay.classList.remove("hidden");
   }
-  function hideOverlay(){ overlay.classList.add("hidden"); }
-  function resetGame() {
-    distance=0; speed=340; runTime=0; spawnDistance=380;
-    obstacles=[]; particles=[];
-    player.y=groundY-player.size; player.vy=0; player.angle=0; player.onGround=true;
-    scoreEl.textContent="0"; progressEl.style.width="0%"; speedEl.textContent="1.0x";
+  function hideOverlay() { overlay.classList.add("hidden"); }
+
+  function buildObstacles() {
+    obstacles = LEVEL.map(o => {
+      const obj = { type: o.type, x: o.x, baseX: o.x };
+      if (o.type === "spike") { obj.w = 34; obj.h = 34; obj.count = 1; }
+      else if (o.type === "spikes") { obj.count = o.count || 2; obj.w = obj.count * 34; obj.h = 34; }
+      else if (o.type === "block") { obj.w = 42; obj.h = 42; }
+      else if (o.type === "blockTall") { obj.w = 42; obj.h = 72; }
+      else if (o.type.startsWith("portal")) { obj.w = 52; obj.h = 95; }
+      else if (o.type === "finish") { obj.w = 70; obj.h = 140; }
+      return obj;
+    });
   }
-  function startGame() {
-    resetGame(); state="playing"; hideOverlay(); lastTime=performance.now(); beep(620,.1,"triangle");
-  }
-  function jump() {
-    if(state==="ready" || state==="dead") { startGame(); return; }
-    if(state==="paused") return;
-    if(player.onGround) {
-      player.vy=-690; player.onGround=false; beep(440,.06,"square",.025);
-      burst(player.x+player.size/2,player.y+player.size,8,"#32f5ff");
-    }
-  }
-  function die() {
-    if(state!=="playing") return;
-    state="dead"; beep(110,.25,"sawtooth",.06);
-    burst(player.x+player.size/2,player.y+player.size/2,30,"#ff3fba");
-    const score=Math.floor(distance/10);
-    if(score>best) { best=score; bestEl.textContent=best; try{localStorage.setItem("geometricalDashBest",String(best));}catch(e){} }
-    showOverlay("Game Over",`You travelled ${score} metres. Best distance: ${best}m. Try again and beat your record!`,"Retry");
-  }
-  function togglePause() {
-    if(state==="playing") { state="paused"; showOverlay("Paused","Take a breather. Your run is waiting.","Resume"); pauseButton.textContent="Resume"; }
-    else if(state==="paused") { state="playing"; hideOverlay(); lastTime=performance.now(); pauseButton.textContent="Pause"; }
-  }
-  function burst(x,y,count,color) {
-    for(let i=0;i<count;i++) {
-      const a=Math.random()*Math.PI*2, s=60+Math.random()*260;
-      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:.35+Math.random()*.5,max:.85,size:2+Math.random()*4,color});
-    }
-  }
-  function spawnObstacle() {
-    const roll=Math.random();
-    if(roll<.55) {
-      const count= Math.random()<.27 ? 2 : 1;
-      obstacles.push({type:"spike",x:W+30,w:count*34,h:34,count});
-    } else if(roll<.83) {
-      const size=34+Math.floor(Math.random()*2)*16;
-      obstacles.push({type:"block",x:W+30,w:size,h:size});
+
+  function setMode(newMode) {
+    if (player.mode === newMode) return;
+    player.mode = newMode;
+    player.vy = 0;
+    player.rotating = false;
+    player.angle = 0;
+    player.onGround = false;
+
+    if (newMode === "cube") {
+      if (player.y + player.size > GROUND_Y - 8) {
+        player.y = GROUND_Y - player.size;
+        player.onGround = true;
+      }
     } else {
-      obstacles.push({type:"double",x:W+30,w:70,h:34});
+      player.y = Math.max(CEILING_Y + 20, Math.min(GROUND_Y - player.size - 20, player.y));
     }
-    spawnDistance=260+Math.random()*210;
+
+    modeLabel.textContent = newMode.toUpperCase();
+    const col = newMode === "cube" ? "#32f5ff" : newMode === "ship" ? "#ff9f43" : "#c084fc";
+    beep(newMode === "cube" ? 440 : newMode === "ship" ? 620 : 880, 0.12, "triangle", 0.05);
+    burst(player.x + player.size / 2, player.y + player.size / 2, 16, col);
   }
-  function update(dt) {
-    if(state!=="playing") {
-      for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=400*dt;p.life-=dt;}
-      particles=particles.filter(p=>p.life>0);
+
+  function resetGame() {
+    distance = 0;
+    speed = BASE_SPEED;
+    runTime = 0;
+    particles = [];
+    player.y = GROUND_Y - PLAYER_SIZE;
+    player.vy = 0;
+    player.angle = 0;
+    player.onGround = true;
+    player.mode = "cube";
+    player.rotating = false;
+    inputHeld = false;
+    modeLabel.textContent = "CUBE";
+    buildObstacles();
+    scoreEl.textContent = "0";
+    progressEl.style.width = "0%";
+  }
+
+  function startGame() {
+    resetGame();
+    state = "playing";
+    hideOverlay();
+    lastTime = performance.now();
+    beep(620, 0.1, "triangle");
+  }
+
+  function handleInputPress() {
+    if (state === "ready" || state === "dead" || state === "won") {
+      startGame();
       return;
     }
-    runTime+=dt;
-    speed=Math.min(620,340+runTime*5.5);
-    distance+=speed*dt;
-    if(distance>=spawnDistance){spawnObstacle();spawnDistance=distance+260+Math.random()*210;}
-    const oldY=player.y;
-    player.vy+=1900*dt; player.y+=player.vy*dt;
-    if(player.y+player.size>=groundY) {
-      player.y=groundY-player.size; player.vy=0; player.onGround=true;
-      if(oldY+player.size<groundY && Math.abs(player.angle)>.2) burst(player.x+17,groundY,5,"#5c76ff");
-    } else player.onGround=false;
-    if(!player.onGround) player.angle+=dt*7.5;
-    else player.angle=Math.round(player.angle/(Math.PI/2))*(Math.PI/2);
-    for(const o of obstacles) o.x-=speed*dt;
-    obstacles=obstacles.filter(o=>o.x+o.w>-10);
-    // Collision uses a slightly inset player hitbox for fairer jumps.
-    const px=player.x+5, py=player.y+4, pw=player.size-10, ph=player.size-7;
-    for(const o of obstacles) {
-      if(px+pw<o.x || px>o.x+o.w) continue;
-      if(o.type==="block") {
-        if(px+pw>o.x+3 && px<o.x+o.w-3 && py+ph>groundY-o.h+3) { die(); break; }
-      } else {
-        const spikeCount=o.type==="double"?2:o.count;
-        for(let i=0;i<spikeCount;i++) {
-          const sx=o.x+i*34, sw=34, sh=o.h;
-          if(px+pw>sx+5 && px<sx+sw-5 && py+ph>groundY-sh+8) { die(); break; }
-        }
+    if (state === "paused") return;
+
+    inputHeld = true;
+
+    if (player.mode === "cube" && player.onGround) {
+      player.vy = CUBE_JUMP;
+      player.onGround = false;
+      player.rotating = true;
+      beep(440, 0.06, "square", 0.025);
+      burst(player.x + player.size / 2, player.y + player.size, 7, "#32f5ff");
+    }
+  }
+
+  function handleInputRelease() {
+    inputHeld = false;
+  }
+
+  function die() {
+    if (state !== "playing") return;
+    state = "dead";
+    beep(110, 0.25, "sawtooth", 0.06);
+    burst(player.x + player.size / 2, player.y + player.size / 2, 30, "#ff3fba");
+    const pct = Math.min(100, Math.floor((distance / LEVEL_LENGTH) * 100));
+    if (pct > best) {
+      best = pct;
+      bestEl.textContent = best + "%";
+      try { localStorage.setItem("geometricalDashBest", String(best)); } catch (e) {}
+    }
+    showOverlay("Game Over",
+      `You reached ${pct}% (${Math.floor(distance / 10)}m) in ${player.mode.toUpperCase()} mode. Best: ${best}%.`,
+      "Retry");
+  }
+
+  function win() {
+    if (state !== "playing") return;
+    state = "won";
+    beep(880, 0.15, "triangle", 0.05);
+    setTimeout(() => beep(1100, 0.2, "triangle", 0.05), 120);
+    burst(player.x + player.size / 2, player.y + player.size / 2, 45, "#32f5ff");
+    best = 100;
+    bestEl.textContent = "100%";
+    try { localStorage.setItem("geometricalDashBest", "100"); } catch (e) {}
+    showOverlay("LEVEL CLEAR!",
+      `Perfect run! Neon Circuit Multi-Mode completed (${Math.floor(distance / 10)}m).`,
+      "Play Again");
+  }
+
+  function togglePause() {
+    if (state === "playing") {
+      state = "paused";
+      showOverlay("Paused", "Take a breather. Your run is waiting.", "Resume");
+      pauseButton.textContent = "Resume";
+    } else if (state === "paused") {
+      state = "playing";
+      hideOverlay();
+      lastTime = performance.now();
+      pauseButton.textContent = "Pause";
+    }
+  }
+
+  function burst(x, y, count, color) {
+    for (let i = 0; i < count; i++) {
+      const a = Math.random() * Math.PI * 2;
+      const s = 70 + Math.random() * 240;
+      particles.push({
+        x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s,
+        life: 0.35 + Math.random() * 0.45, max: 0.8,
+        size: 2 + Math.random() * 4, color
+      });
+    }
+  }
+
+  function pointInTriangle(px, py, x1, y1, x2, y2, x3, y3) {
+    const area = 0.5 * (-y2 * x3 + y1 * (-x2 + x3) + x1 * (y2 - y3) + x2 * y3);
+    if (Math.abs(area) < 0.0001) return false;
+    const s = 1 / (2 * area) * (y1 * x3 - x1 * y3 + (y3 - y1) * px + (x1 - x3) * py);
+    const t = 1 / (2 * area) * (x1 * y2 - y1 * x2 + (y1 - y2) * px + (x2 - x1) * py);
+    return s >= 0 && t >= 0 && (1 - s - t) >= 0;
+  }
+
+  function checkCollision(o) {
+    let insetX = 6, insetY = 5, shrinkW = 12, shrinkH = 8;
+    if (player.mode === "wave") { insetX = 10; insetY = 9; shrinkW = 18; shrinkH = 16; }
+    else if (player.mode === "ship") { insetX = 5; insetY = 7; shrinkW = 10; shrinkH = 12; }
+
+    const px = player.x + insetX;
+    const py = player.y + insetY;
+    const pw = player.size - shrinkW;
+    const ph = player.size - shrinkH;
+
+    if (o.type.startsWith("portal")) {
+      if (px + pw > o.x && px < o.x + o.w && py + ph > GROUND_Y - o.h && py < GROUND_Y) {
+        if (o.type === "portalShip") setMode("ship");
+        else if (o.type === "portalWave") setMode("wave");
+        else if (o.type === "portalCube") setMode("cube");
       }
-      if(state!=="playing") break;
+      return false;
     }
-    for(const p of particles){p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy+=500*dt;p.life-=dt;}
-    particles=particles.filter(p=>p.life>0);
-    scoreEl.textContent=Math.floor(distance/10);
-    speedEl.textContent=(speed/340).toFixed(1)+"x";
-    progressEl.style.width=(Math.min(100,(distance%6000)/6000*100))+"%";
+
+    if (o.type === "finish") {
+      if (px + pw > o.x && distance >= LEVEL_LENGTH - 300) {
+        win();
+        return true;
+      }
+      return false;
+    }
+
+    if (px + pw < o.x || px > o.x + o.w) return false;
+
+    if (o.type === "block" || o.type === "blockTall") {
+      const top = GROUND_Y - o.h;
+      if (py + ph > top + 2 && px + pw > o.x + 2 && px < o.x + o.w - 2) return true;
+    } else {
+      const count = o.count || 1;
+      for (let i = 0; i < count; i++) {
+        const sx = o.x + i * 34;
+        const tipX = sx + 17;
+        const tipY = GROUND_Y - 34;
+        const baseY = GROUND_Y;
+        const points = [
+          [px, py + ph], [px + pw, py + ph], [px + pw / 2, py + ph],
+          [px, py + ph * 0.55], [px + pw, py + ph * 0.55], [px + pw / 2, py + ph * 0.3]
+        ];
+        for (const [qx, qy] of points) {
+          if (pointInTriangle(qx, qy, sx, baseY, tipX, tipY, sx + 34, baseY)) return true;
+        }
+        if (tipX > px && tipX < px + pw && tipY > py && tipY < py + ph) return true;
+      }
+    }
+    return false;
   }
+
+  function update(dt) {
+    for (const p of particles) {
+      p.x += p.vx * dt;
+      p.y += p.vy * dt;
+      p.vy += 650 * dt;
+      p.life -= dt;
+    }
+    particles = particles.filter(p => p.life > 0);
+
+    if (state !== "playing") return;
+
+    runTime += dt;
+    speed = Math.min(MAX_SPEED, BASE_SPEED + runTime * 2.6);
+    distance += speed * dt;
+
+    for (const o of obstacles) {
+      o.x = o.baseX - distance + PLAYER_X + 40;
+    }
+
+    // ===== MODE-SPECIFIC PHYSICS =====
+    if (player.mode === "cube") {
+      player.vy += CUBE_GRAVITY * dt;
+      player.y += player.vy * dt;
+
+      if (player.y + player.size >= GROUND_Y) {
+        player.y = GROUND_Y - player.size;
+        player.vy = 0;
+        if (!player.onGround) {
+          player.rotating = false;
+          player.angle = Math.round(player.angle / (Math.PI / 2)) * (Math.PI / 2);
+          burst(player.x + player.size / 2, GROUND_Y, 4, "#5c76ff");
+        }
+        player.onGround = true;
+      } else {
+        player.onGround = false;
+      }
+
+      if (player.y < CEILING_Y) {
+        player.y = CEILING_Y;
+        player.vy = Math.max(0, player.vy);
+      }
+
+      if (!player.onGround && player.rotating) {
+        player.angle += dt * 9.8;
+      }
+    }
+    else if (player.mode === "ship") {
+      // Hold = thrust up, release = gravity. Has real momentum.
+      if (inputHeld) {
+        player.vy += SHIP_THRUST * dt;
+      } else {
+        player.vy += SHIP_GRAVITY * dt;
+      }
+      player.vy = Math.max(-SHIP_MAX_VY, Math.min(SHIP_MAX_VY, player.vy));
+      player.y += player.vy * dt;
+
+      // Soft floor/ceiling (death only on hard impact)
+      if (player.y + player.size > GROUND_Y) {
+        player.y = GROUND_Y - player.size;
+        if (player.vy > 350) { die(); return; }
+        player.vy = 0;
+      }
+      if (player.y < CEILING_Y) {
+        player.y = CEILING_Y;
+        if (player.vy < -350) { die(); return; }
+        player.vy = 0;
+      }
+
+      player.angle = player.vy * 0.0007;
+    }
+    else if (player.mode === "wave") {
+      // Pure 45° diagonal – vertical speed matches horizontal scale
+      const waveVy = WAVE_BASE_VY * (speed / BASE_SPEED);
+      player.vy = inputHeld ? -waveVy : waveVy;
+      player.y += player.vy * dt;
+
+      // Wave dies instantly on floor or ceiling
+      if (player.y + player.size >= GROUND_Y || player.y <= CEILING_Y) {
+        die();
+        return;
+      }
+
+      player.angle = inputHeld ? -Math.PI / 4 : Math.PI / 4;
+    }
+
+    // Collisions
+    for (const o of obstacles) {
+      if (checkCollision(o)) {
+        if (!o.type.startsWith("portal") && o.type !== "finish") {
+          die();
+        }
+        break;
+      }
+    }
+
+    if (distance >= LEVEL_LENGTH && state === "playing") win();
+
+    scoreEl.textContent = Math.floor(distance / 10);
+    progressEl.style.width = Math.min(100, (distance / LEVEL_LENGTH) * 100) + "%";
+  }
+
   function drawBackground() {
-    const g=ctx.createLinearGradient(0,0,0,H);
-    g.addColorStop(0,"#101746"); g.addColorStop(.65,"#11102f"); g.addColorStop(1,"#211447");
-    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
-    // Glowing moon / distant energy orb
-    const glow=ctx.createRadialGradient(720,125,5,720,125,180);
-    glow.addColorStop(0,"#4c43b944"); glow.addColorStop(1,"#4c43b900");
-    ctx.fillStyle=glow;ctx.fillRect(530,0,380,310);
-    for(const s of stars) {
-      const x=(s.x-(distance*.12)%(W+20)+W+20)%(W+20);
-      ctx.globalAlpha=.35+.45*(Math.sin(runTime*2+s.tw)+1)/2;
-      ctx.fillStyle="#b7f8ff";ctx.fillRect(x,s.y,s.r,s.r);
+    const g = ctx.createLinearGradient(0, 0, 0, H);
+    g.addColorStop(0, "#101746");
+    g.addColorStop(0.65, "#11102f");
+    g.addColorStop(1, "#211447");
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, W, H);
+
+    const glow = ctx.createRadialGradient(720, 125, 5, 720, 125, 180);
+    glow.addColorStop(0, "#4c43b944");
+    glow.addColorStop(1, "#4c43b900");
+    ctx.fillStyle = glow;
+    ctx.fillRect(530, 0, 380, 310);
+
+    for (const s of stars) {
+      const x = (s.x - (distance * 0.12) % (W + 20) + W + 20) % (W + 20);
+      ctx.globalAlpha = 0.35 + 0.45 * (Math.sin(runTime * 2 + s.tw) + 1) / 2;
+      ctx.fillStyle = "#b7f8ff";
+      ctx.fillRect(x, s.y, s.r, s.r);
     }
-    ctx.globalAlpha=1;
-    ctx.strokeStyle="#3945a9";ctx.lineWidth=1;
-    const grid=48, off=(distance*.45)%grid;
-    for(let x=-off;x<W;x+=grid){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,groundY);ctx.stroke();}
-    for(let y=42;y<groundY;y+=grid){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
-    ctx.fillStyle="#101b4a";ctx.fillRect(0,groundY,W,H-groundY);
-    ctx.fillStyle="#32f5ff";ctx.shadowColor="#32f5ff";ctx.shadowBlur=15;ctx.fillRect(0,groundY,W,4);ctx.shadowBlur=0;
-    ctx.strokeStyle="#273a89";ctx.lineWidth=2;
-    for(let x=-((distance*.9)%60);x<W;x+=60){ctx.beginPath();ctx.moveTo(x,groundY+4);ctx.lineTo(x-26, H);ctx.stroke();}
+    ctx.globalAlpha = 1;
+
+    ctx.strokeStyle = "#3945a9";
+    ctx.lineWidth = 1;
+    const grid = 48;
+    const off = (distance * 0.45) % grid;
+    for (let x = -off; x < W; x += grid) {
+      ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, GROUND_Y); ctx.stroke();
+    }
+    for (let y = 42; y < GROUND_Y; y += grid) {
+      ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(W, y); ctx.stroke();
+    }
+
+    ctx.fillStyle = "#101b4a";
+    ctx.fillRect(0, GROUND_Y, W, H - GROUND_Y);
+    ctx.fillStyle = "#32f5ff";
+    ctx.shadowColor = "#32f5ff";
+    ctx.shadowBlur = 14;
+    ctx.fillRect(0, GROUND_Y, W, 4);
+    ctx.shadowBlur = 0;
+
+    ctx.fillStyle = "#1a2250";
+    ctx.fillRect(0, 0, W, CEILING_Y);
+    ctx.fillStyle = "#5c6cff";
+    ctx.fillRect(0, CEILING_Y - 2, W, 2);
+
+    ctx.strokeStyle = "#273a89";
+    ctx.lineWidth = 2;
+    for (let x = -((distance * 0.9) % 60); x < W; x += 60) {
+      ctx.beginPath();
+      ctx.moveTo(x, GROUND_Y + 4);
+      ctx.lineTo(x - 26, H);
+      ctx.stroke();
+    }
   }
+
   function drawPlayer() {
+    if (state === "dead") return;
+
     ctx.save();
-    ctx.translate(player.x+player.size/2,player.y+player.size/2);
+    ctx.translate(player.x + player.size / 2, player.y + player.size / 2);
     ctx.rotate(player.angle);
-    ctx.shadowColor="#32f5ff";ctx.shadowBlur=22;
-    const grad=ctx.createLinearGradient(-17,-17,17,17);
-    grad.addColorStop(0,"#a6ffff");grad.addColorStop(.45,"#32f5ff");grad.addColorStop(1,"#3571ff");
-    ctx.fillStyle=grad;ctx.fillRect(-17,-17,34,34);
-    ctx.shadowBlur=0;ctx.strokeStyle="#e7ffff";ctx.lineWidth=2;ctx.strokeRect(-17,-17,34,34);
-    ctx.fillStyle="#07102a";ctx.fillRect(-9,-6,6,8);ctx.fillRect(4,-6,6,8);
-    ctx.fillStyle="#fff";ctx.fillRect(-8,-5,2,3);ctx.fillRect(5,-5,2,3);
-    ctx.strokeStyle="#07102a";ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(-7,7);ctx.lineTo(7,7);ctx.stroke();
+
+    if (player.mode === "cube") {
+      ctx.shadowColor = "#32f5ff";
+      ctx.shadowBlur = 20;
+      const grad = ctx.createLinearGradient(-17, -17, 17, 17);
+      grad.addColorStop(0, "#a6ffff");
+      grad.addColorStop(0.45, "#32f5ff");
+      grad.addColorStop(1, "#3571ff");
+      ctx.fillStyle = grad;
+      ctx.fillRect(-17, -17, 34, 34);
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#e7ffff";
+      ctx.lineWidth = 2;
+      ctx.strokeRect(-17, -17, 34, 34);
+      ctx.fillStyle = "#07102a";
+      ctx.fillRect(-9, -6, 6, 8);
+      ctx.fillRect(4, -6, 6, 8);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(-8, -5, 2, 3);
+      ctx.fillRect(5, -5, 2, 3);
+      ctx.strokeStyle = "#07102a";
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.moveTo(-7, 7); ctx.lineTo(7, 7); ctx.stroke();
+    }
+    else if (player.mode === "ship") {
+      ctx.shadowColor = "#ff9f43";
+      ctx.shadowBlur = 18;
+      ctx.fillStyle = "#ffb347";
+      ctx.beginPath();
+      ctx.moveTo(18, 0);
+      ctx.lineTo(-12, -14);
+      ctx.lineTo(-8, 0);
+      ctx.lineTo(-12, 14);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#ffe0b0";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#32f5ff";
+      ctx.beginPath();
+      ctx.arc(2, 0, 6, 0, Math.PI * 2);
+      ctx.fill();
+      if (inputHeld) {
+        ctx.fillStyle = "#ff5e5e";
+        ctx.beginPath();
+        ctx.moveTo(-12, -6);
+        ctx.lineTo(-22 - Math.random() * 6, 0);
+        ctx.lineTo(-12, 6);
+        ctx.closePath();
+        ctx.fill();
+      }
+    }
+    else if (player.mode === "wave") {
+      ctx.shadowColor = "#a855f7";
+      ctx.shadowBlur = 16;
+      ctx.fillStyle = "#c084fc";
+      ctx.beginPath();
+      ctx.moveTo(16, 0);
+      ctx.lineTo(-14, -12);
+      ctx.lineTo(-6, 0);
+      ctx.lineTo(-14, 12);
+      ctx.closePath();
+      ctx.fill();
+      ctx.shadowBlur = 0;
+      ctx.strokeStyle = "#f0d0ff";
+      ctx.lineWidth = 2;
+      ctx.stroke();
+      ctx.fillStyle = "#fff";
+      ctx.beginPath();
+      ctx.arc(-2, 0, 4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     ctx.restore();
   }
+
   function drawObstacles() {
-    for(const o of obstacles) {
-      if(o.type==="block") {
-        ctx.save();ctx.shadowColor="#ff3fba";ctx.shadowBlur=15;
-        const g=ctx.createLinearGradient(o.x,groundY-o.h,o.x+o.w,groundY);
-        g.addColorStop(0,"#ff6dd0");g.addColorStop(1,"#a52cff");
-        ctx.fillStyle=g;ctx.fillRect(o.x,groundY-o.h,o.w,o.h);
-        ctx.shadowBlur=0;ctx.strokeStyle="#ffd9ff";ctx.lineWidth=2;ctx.strokeRect(o.x+2,groundY-o.h+2,o.w-4,o.h-4);
-        ctx.strokeStyle="#ffb8f2";ctx.beginPath();ctx.moveTo(o.x+5,groundY-o.h+o.h*.65);ctx.lineTo(o.x+o.w-5,groundY-o.h+o.h*.65);ctx.stroke();ctx.restore();
-      } else {
-        const count=o.type==="double"?2:o.count;
-        for(let i=0;i<count;i++) {
-          const x=o.x+i*34;
-          ctx.save();ctx.shadowColor="#ff3fba";ctx.shadowBlur=17;
-          const g=ctx.createLinearGradient(x,groundY-34,x+17,groundY);
-          g.addColorStop(0,"#fff0ff");g.addColorStop(.25,"#ff57ce");g.addColorStop(1,"#b323ff");
-          ctx.fillStyle=g;ctx.beginPath();ctx.moveTo(x,groundY);ctx.lineTo(x+17,groundY-34);ctx.lineTo(x+34,groundY);ctx.closePath();ctx.fill();
-          ctx.shadowBlur=0;ctx.strokeStyle="#ffd9ff";ctx.lineWidth=2;ctx.stroke();ctx.restore();
+    for (const o of obstacles) {
+      if (o.x + o.w < -60 || o.x > W + 60) continue;
+
+      if (o.type.startsWith("portal")) {
+        ctx.save();
+        let c1, c2, label;
+        if (o.type === "portalShip") { c1 = "#ff9f43"; c2 = "#ff6b00"; label = "SHIP"; }
+        else if (o.type === "portalWave") { c1 = "#c084fc"; c2 = "#7c3aed"; label = "WAVE"; }
+        else { c1 = "#32f5ff"; c2 = "#0ea5e9"; label = "CUBE"; }
+
+        ctx.shadowColor = c1;
+        ctx.shadowBlur = 22;
+        const g = ctx.createLinearGradient(o.x, GROUND_Y - o.h, o.x + o.w, GROUND_Y);
+        g.addColorStop(0, c1);
+        g.addColorStop(1, c2);
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.roundRect(o.x, GROUND_Y - o.h, o.w, o.h, 14);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#07102a";
+        ctx.font = "bold 13px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText(label, o.x + o.w / 2, GROUND_Y - o.h / 2 + 5);
+        ctx.restore();
+      }
+      else if (o.type === "finish") {
+        ctx.save();
+        ctx.shadowColor = "#32f5ff";
+        ctx.shadowBlur = 22;
+        const g = ctx.createLinearGradient(o.x, GROUND_Y - o.h, o.x + o.w, GROUND_Y);
+        g.addColorStop(0, "#7dffff");
+        g.addColorStop(1, "#32f5ff");
+        ctx.fillStyle = g;
+        ctx.fillRect(o.x, GROUND_Y - o.h, o.w, o.h);
+        ctx.shadowBlur = 0;
+        ctx.fillStyle = "#07102a";
+        ctx.font = "bold 16px Arial";
+        ctx.textAlign = "center";
+        ctx.fillText("END", o.x + o.w / 2, GROUND_Y - o.h / 2 + 6);
+        ctx.restore();
+      }
+      else if (o.type === "block" || o.type === "blockTall") {
+        ctx.save();
+        ctx.shadowColor = "#ff3fba";
+        ctx.shadowBlur = 14;
+        const g = ctx.createLinearGradient(o.x, GROUND_Y - o.h, o.x + o.w, GROUND_Y);
+        g.addColorStop(0, "#ff6dd0");
+        g.addColorStop(1, "#a52cff");
+        ctx.fillStyle = g;
+        ctx.fillRect(o.x, GROUND_Y - o.h, o.w, o.h);
+        ctx.shadowBlur = 0;
+        ctx.strokeStyle = "#ffd9ff";
+        ctx.lineWidth = 2;
+        ctx.strokeRect(o.x + 2, GROUND_Y - o.h + 2, o.w - 4, o.h - 4);
+        ctx.strokeStyle = "#ffb8f2";
+        ctx.beginPath();
+        ctx.moveTo(o.x + 5, GROUND_Y - o.h + o.h * 0.55);
+        ctx.lineTo(o.x + o.w - 5, GROUND_Y - o.h + o.h * 0.55);
+        ctx.stroke();
+        ctx.restore();
+      }
+      else {
+        const count = o.count || 1;
+        for (let i = 0; i < count; i++) {
+          const x = o.x + i * 34;
+          ctx.save();
+          ctx.shadowColor = "#ff3fba";
+          ctx.shadowBlur = 16;
+          const g = ctx.createLinearGradient(x, GROUND_Y - 34, x + 17, GROUND_Y);
+          g.addColorStop(0, "#fff0ff");
+          g.addColorStop(0.25, "#ff57ce");
+          g.addColorStop(1, "#b323ff");
+          ctx.fillStyle = g;
+          ctx.beginPath();
+          ctx.moveTo(x, GROUND_Y);
+          ctx.lineTo(x + 17, GROUND_Y - 34);
+          ctx.lineTo(x + 34, GROUND_Y);
+          ctx.closePath();
+          ctx.fill();
+          ctx.shadowBlur = 0;
+          ctx.strokeStyle = "#ffd9ff";
+          ctx.lineWidth = 2;
+          ctx.stroke();
+          ctx.restore();
         }
       }
     }
   }
+
   function drawParticles() {
-    for(const p of particles){ctx.globalAlpha=Math.max(0,p.life/p.max);ctx.fillStyle=p.color;ctx.fillRect(p.x,p.y,p.size,p.size);}
-    ctx.globalAlpha=1;
+    for (const p of particles) {
+      ctx.globalAlpha = Math.max(0, p.life / p.max);
+      ctx.fillStyle = p.color;
+      ctx.fillRect(p.x, p.y, p.size, p.size);
+    }
+    ctx.globalAlpha = 1;
   }
+
   function draw() {
-    drawBackground();drawObstacles();drawParticles();
-    if(state!=="dead") drawPlayer();
-    // Small level indicator
-    ctx.fillStyle="#d9e5ff";ctx.font="bold 14px Arial";ctx.fillText("LEVEL 01  //  NEON CIRCUIT",22,30);
+    drawBackground();
+    drawObstacles();
+    drawParticles();
+    drawPlayer();
+
+    ctx.fillStyle = "#d9e5ff";
+    ctx.font = "bold 14px Arial";
+    ctx.textAlign = "left";
+    ctx.fillText("LEVEL 01  //  NEON CIRCUIT MULTI", 22, 30);
+
+    ctx.fillStyle = player.mode === "cube" ? "#32f5ff" : player.mode === "ship" ? "#ff9f43" : "#c084fc";
+    ctx.font = "bold 13px Arial";
+    ctx.fillText(player.mode.toUpperCase(), W - 90, 30);
   }
+
   function loop(now) {
-    const dt=Math.min(.033,(now-(lastTime||now))/1000);lastTime=now;
-    update(dt);draw();requestAnimationFrame(loop);
+    const dt = Math.min(0.033, (now - (lastTime || now)) / 1000);
+    lastTime = now;
+    update(dt);
+    draw();
+    requestAnimationFrame(loop);
   }
-  mainButton.addEventListener("click",()=>{
-    if(state==="paused"){state="playing";hideOverlay();lastTime=performance.now();pauseButton.textContent="Pause";}
-    else startGame();
+
+  mainButton.addEventListener("click", () => {
+    if (state === "paused") {
+      state = "playing";
+      hideOverlay();
+      lastTime = performance.now();
+      pauseButton.textContent = "Pause";
+    } else startGame();
   });
-  pauseButton.addEventListener("click",togglePause);
-  soundButton.addEventListener("click",()=>{soundOn=!soundOn;soundButton.textContent="Sound: "+(soundOn?"On":"Off");if(soundOn)beep(700,.05);});
-  canvas.addEventListener("pointerdown",e=>{e.preventDefault();jump();});
-  window.addEventListener("keydown",e=>{
-    if(["Space","ArrowUp","KeyW"].includes(e.code)){e.preventDefault();if(!e.repeat)jump();}
-    if(e.code==="Escape"||e.code==="KeyP"){if(state==="playing"||state==="paused")togglePause();}
-    if(e.code==="Enter"&&(state==="ready"||state==="dead"))startGame();
+
+  pauseButton.addEventListener("click", togglePause);
+  soundButton.addEventListener("click", () => {
+    soundOn = !soundOn;
+    soundButton.textContent = "Sound: " + (soundOn ? "On" : "Off");
+    if (soundOn) beep(700, 0.05);
   });
-  document.addEventListener("visibilitychange",()=>{if(document.hidden&&state==="playing")togglePause();});
-  resetGame();draw();requestAnimationFrame(loop);
+
+  canvas.addEventListener("pointerdown", e => { e.preventDefault(); handleInputPress(); });
+  canvas.addEventListener("pointerup", e => { e.preventDefault(); handleInputRelease(); });
+  canvas.addEventListener("pointerleave", () => handleInputRelease());
+
+  window.addEventListener("keydown", e => {
+    if (["Space", "ArrowUp", "KeyW"].includes(e.code)) {
+      e.preventDefault();
+      if (!e.repeat) handleInputPress();
+    }
+    if (e.code === "Escape" || e.code === "KeyP") {
+      if (state === "playing" || state === "paused") togglePause();
+    }
+    if (e.code === "Enter" && (state === "ready" || state === "dead" || state === "won")) startGame();
+  });
+  window.addEventListener("keyup", e => {
+    if (["Space", "ArrowUp", "KeyW"].includes(e.code)) {
+      e.preventDefault();
+      handleInputRelease();
+    }
+  });
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden && state === "playing") togglePause();
+  });
+
+  resetGame();
+  draw();
+  requestAnimationFrame(loop);
 })();
 </script>
 </body>
