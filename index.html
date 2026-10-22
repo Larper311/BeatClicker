@@ -2,179 +2,297 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>4-Lane Rhythm Game</title>
+<title>Rhythm Game + Editor</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #0d0d12;
+    background: #0a0a10;
     color: white;
-    font-family: Arial, sans-serif;
+    font-family: 'Segoe UI', Arial, sans-serif;
     overflow: hidden;
     height: 100vh;
     display: flex;
-    justify-content: center;
+    flex-direction: column;
     align-items: center;
+    justify-content: center;
+    user-select: none;
   }
+
+  #ui-bar {
+    display: flex;
+    gap: 12px;
+    margin-bottom: 12px;
+    z-index: 100;
+  }
+  button {
+    background: #222;
+    color: white;
+    border: 1px solid #444;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+    font-size: 14px;
+  }
+  button:hover { background: #333; }
+  button.active { background: #4a4; border-color: #6f6; }
+
   #game {
     position: relative;
     width: 480px;
     height: 640px;
-    background: #15151c;
+    background: #12121a;
     border: 3px solid #333;
     overflow: hidden;
+    box-shadow: 0 0 40px rgba(0,0,0,0.8);
   }
+
   .lane {
     position: absolute;
     top: 0;
     width: 120px;
     height: 100%;
-    border-right: 1px solid #2a2a35;
+    border-right: 1px solid #252530;
   }
-  .lane:last-child { border-right: none; }
+  .lane.flash { background: rgba(255,255,255,0.08) !important; }
+
   .hit-line {
     position: absolute;
-    bottom: 80px;
+    bottom: 90px;
     left: 0;
     width: 100%;
-    height: 8px;
-    background: white;
-    opacity: 0.85;
+    height: 6px;
+    background: linear-gradient(90deg, #fff, #aaf, #fff);
+    box-shadow: 0 0 15px #fff, 0 0 30px #88f;
     z-index: 10;
   }
+
   .note {
     position: absolute;
     width: 100px;
-    height: 28px;
-    border-radius: 6px;
+    border-radius: 8px;
     left: 10px;
+    box-shadow: 0 0 12px currentColor;
+    transition: filter 0.1s;
   }
-  #score {
+  .note.long {
+    border-radius: 8px 8px 4px 4px;
+  }
+  .note.long::after {
+    content: '';
     position: absolute;
-    top: 20px;
-    left: 20px;
-    font-size: 28px;
-    z-index: 20;
+    bottom: -100%;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: inherit;
+    opacity: 0.4;
+    border-radius: 0 0 8px 8px;
   }
-  #combo {
-    position: absolute;
-    top: 55px;
-    left: 20px;
-    font-size: 22px;
-    z-index: 20;
-  }
+
+  #score { position: absolute; top: 18px; left: 18px; font-size: 26px; z-index: 20; text-shadow: 0 0 8px #000; }
+  #combo { position: absolute; top: 50px; left: 18px; font-size: 20px; z-index: 20; text-shadow: 0 0 8px #000; }
   #judgment {
     position: absolute;
-    top: 45%;
+    top: 42%;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 42px;
+    font-size: 48px;
     font-weight: bold;
     opacity: 0;
     z-index: 30;
     pointer-events: none;
+    text-shadow: 0 0 20px currentColor;
   }
+
   .keys {
     position: absolute;
-    bottom: 20px;
+    bottom: 25px;
     width: 100%;
     display: flex;
     justify-content: space-around;
-    font-size: 20px;
-    opacity: 0.5;
+    font-size: 18px;
+    opacity: 0.45;
+    z-index: 5;
+  }
+
+  /* Particles */
+  .particle {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 40;
+  }
+
+  /* Editor */
+  #editor-info {
+    margin-top: 10px;
+    font-size: 14px;
+    opacity: 0.7;
   }
 </style>
 </head>
 <body>
+
+<div id="ui-bar">
+  <button id="btn-play" class="active">Play Mode</button>
+  <button id="btn-edit">Editor Mode</button>
+  <button id="btn-clear">Clear Chart</button>
+  <button id="btn-long">Long Note: OFF</button>
+</div>
 
 <div id="game">
   <div id="score">Score: 0</div>
   <div id="combo">Combo: 0</div>
   <div id="judgment"></div>
   <div class="hit-line"></div>
-  <div class="keys">
-    <span>D</span><span>F</span><span>J</span><span>K</span>
-  </div>
+  <div class="keys"><span>D</span><span>F</span><span>J</span><span>K</span></div>
 </div>
 
+<div id="editor-info">Editor: Click on a lane to place note • Hold Shift + click for long note • Right-click to delete</div>
+
 <script>
-const canvas = document.getElementById('game');
+const game = document.getElementById('game');
 const scoreEl = document.getElementById('score');
 const comboEl = document.getElementById('combo');
 const judgmentEl = document.getElementById('judgment');
+const btnPlay = document.getElementById('btn-play');
+const btnEdit = document.getElementById('btn-edit');
+const btnClear = document.getElementById('btn-clear');
+const btnLong = document.getElementById('btn-long');
+const editorInfo = document.getElementById('editor-info');
 
-// Settings
 const LANE_COUNT = 4;
 const LANE_WIDTH = 120;
-const NOTE_SPEED = 480;          // pixels per second
-const SPAWN_AHEAD = 1.8;         // seconds
-const HIT_Y = 560;               // hit line Y
+const NOTE_SPEED = 520;
+const SPAWN_AHEAD = 1.7;
+const HIT_Y = 550;
 const PERFECT = 0.07;
 const GOOD = 0.14;
 
-const keys = ['d', 'f', 'j', 'k'];
-const colors = ['#33d6ff', '#ff5ab8', '#ffd633', '#5aff73'];
+const keys = ['d','f','j','k'];
+const colors = ['#33d6ff','#ff5ab8','#ffd633','#5aff73'];
 
-// Simple chart (time in seconds, lane 0-3)
-const chart = [
-  {t:1.0, lane:0}, {t:1.4, lane:1}, {t:1.8, lane:2}, {t:2.2, lane:3},
-  {t:2.6, lane:0}, {t:2.9, lane:2}, {t:3.2, lane:1}, {t:3.6, lane:3},
-  {t:4.0, lane:0}, {t:4.3, lane:1}, {t:4.6, lane:2}, {t:5.0, lane:3},
-  {t:5.4, lane:0}, {t:5.7, lane:2}, {t:6.1, lane:1}, {t:6.5, lane:3},
-  {t:7.0, lane:0}, {t:7.4, lane:1}, {t:7.8, lane:2}, {t:8.2, lane:3},
-  {t:8.6, lane:0}, {t:9.0, lane:1}, {t:9.4, lane:2}, {t:9.8, lane:3},
+let mode = 'play'; // 'play' or 'edit'
+let longMode = false;
+let chart = [
+  {t:1.0,lane:0,duration:0},
+  {t:1.5,lane:1,duration:0},
+  {t:2.0,lane:2,duration:0.4},
+  {t:2.5,lane:3,duration:0},
+  {t:3.0,lane:0,duration:0},
+  {t:3.4,lane:2,duration:0},
+  {t:3.8,lane:1,duration:0.6},
+  {t:4.5,lane:3,duration:0},
 ];
-
 let notes = [];
 let chartIndex = 0;
-let score = 0;
-let combo = 0;
+let score = 0, combo = 0;
 let startTime = null;
-let pressed = [false, false, false, false];
+let playing = false;
+let pressed = [false,false,false,false];
+let holding = [false,false,false,false];
 
 // Create lanes
+const laneEls = [];
 for (let i = 0; i < LANE_COUNT; i++) {
   const lane = document.createElement('div');
   lane.className = 'lane';
   lane.style.left = (i * LANE_WIDTH) + 'px';
-  lane.style.background = i % 2 === 0 ? '#121218' : '#16161e';
-  canvas.appendChild(lane);
+  lane.style.background = i % 2 === 0 ? '#101018' : '#14141e';
+  game.appendChild(lane);
+  laneEls.push(lane);
 }
 
-function spawnNote(data) {
-  const note = document.createElement('div');
-  note.className = 'note';
-  note.style.background = colors[data.lane];
-  note.style.left = (data.lane * LANE_WIDTH + 10) + 'px';
-  note.style.top = (HIT_Y - SPAWN_AHEAD * NOTE_SPEED) + 'px';
-  canvas.appendChild(note);
+// ========== EFFECTS ==========
+function spawnParticles(x, y, color, count = 12) {
+  for (let i = 0; i < count; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = x + 'px';
+    p.style.top = y + 'px';
+    p.style.background = color;
+    p.style.boxShadow = `0 0 6px ${color}`;
+    game.appendChild(p);
 
-  notes.push({
-    el: note,
-    lane: data.lane,
-    time: data.t,
-    y: HIT_Y - SPAWN_AHEAD * NOTE_SPEED,
-    active: true
-  });
+    const angle = Math.random() * Math.PI * 2;
+    const speed = 80 + Math.random() * 120;
+    const vx = Math.cos(angle) * speed;
+    const vy = Math.sin(angle) * speed - 40;
+    let life = 1;
+
+    const anim = () => {
+      life -= 0.03;
+      if (life <= 0) { p.remove(); return; }
+      const rect = p.getBoundingClientRect();
+      p.style.left = (parseFloat(p.style.left) + vx * 0.016) + 'px';
+      p.style.top = (parseFloat(p.style.top) + vy * 0.016) + 'px';
+      p.style.opacity = life;
+      p.style.transform = `scale(${life})`;
+      requestAnimationFrame(anim);
+    };
+    requestAnimationFrame(anim);
+  }
+}
+
+function flashLane(lane) {
+  laneEls[lane].classList.add('flash');
+  setTimeout(() => laneEls[lane].classList.remove('flash'), 80);
+}
+
+function screenShake() {
+  game.style.transform = `translate(${(Math.random()-0.5)*8}px, ${(Math.random()-0.5)*6}px)`;
+  setTimeout(() => game.style.transform = '', 50);
 }
 
 function showJudgment(text, color) {
   judgmentEl.textContent = text;
   judgmentEl.style.color = color;
   judgmentEl.style.opacity = 1;
+  judgmentEl.style.transform = 'translateX(-50%) scale(1.2)';
   setTimeout(() => {
-    judgmentEl.style.transition = 'opacity 0.4s';
+    judgmentEl.style.transition = 'all 0.35s';
     judgmentEl.style.opacity = 0;
-  }, 100);
+    judgmentEl.style.transform = 'translateX(-50%) scale(0.8)';
+  }, 80);
+}
+
+// ========== NOTES ==========
+function spawnNote(data) {
+  const note = document.createElement('div');
+  note.className = 'note' + (data.duration > 0 ? ' long' : '');
+  note.style.background = colors[data.lane];
+  note.style.color = colors[data.lane];
+  note.style.left = (data.lane * LANE_WIDTH + 10) + 'px';
+  note.style.height = data.duration > 0 ? (data.duration * NOTE_SPEED) + 'px' : '28px';
+  note.style.top = (HIT_Y - SPAWN_AHEAD * NOTE_SPEED) + 'px';
+  game.appendChild(note);
+
+  notes.push({
+    el: note,
+    lane: data.lane,
+    time: data.t,
+    duration: data.duration || 0,
+    y: HIT_Y - SPAWN_AHEAD * NOTE_SPEED,
+    active: true,
+    holding: false
+  });
 }
 
 function hitNote(n, judgment, points) {
   n.active = false;
   score += points;
   combo++;
-  n.el.style.background = '#ffffff';
-  n.el.style.transition = 'opacity 0.12s';
+  flashLane(n.lane);
+  spawnParticles(n.lane * LANE_WIDTH + 60, HIT_Y, colors[n.lane], judgment === 'Perfect' ? 18 : 10);
+  if (judgment === 'Perfect') screenShake();
+
+  n.el.style.filter = 'brightness(2)';
+  n.el.style.transition = 'opacity 0.15s, transform 0.15s';
   n.el.style.opacity = 0;
-  setTimeout(() => n.el.remove(), 120);
+  n.el.style.transform = 'scale(1.3)';
+  setTimeout(() => n.el.remove(), 150);
 
   showJudgment(judgment, judgment === 'Perfect' ? '#7aff9e' : '#ffd56a');
   updateUI();
@@ -187,28 +305,20 @@ function miss() {
 }
 
 function tryHit(lane) {
-  let best = null;
-  let bestDiff = 999;
-
+  if (mode !== 'play' || !playing) return;
   const now = (performance.now() - startTime) / 1000;
+  let best = null, bestDiff = 999;
 
   for (const n of notes) {
     if (n.lane === lane && n.active) {
       const diff = Math.abs(now - n.time);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        best = n;
-      }
+      if (diff < bestDiff) { bestDiff = diff; best = n; }
     }
   }
-
   if (!best) return;
 
-  if (bestDiff <= PERFECT) {
-    hitNote(best, 'Perfect', 300);
-  } else if (bestDiff <= GOOD) {
-    hitNote(best, 'Good', 100);
-  }
+  if (bestDiff <= PERFECT) hitNote(best, 'Perfect', 300);
+  else if (bestDiff <= GOOD) hitNote(best, 'Good', 100);
 }
 
 function updateUI() {
@@ -216,50 +326,134 @@ function updateUI() {
   comboEl.textContent = 'Combo: ' + combo;
 }
 
-function gameLoop(timestamp) {
-  if (!startTime) startTime = timestamp;
-  const now = (timestamp - startTime) / 1000;
+// ========== GAME LOOP ==========
+function gameLoop(ts) {
+  if (!startTime) startTime = ts;
+  const now = (ts - startTime) / 1000;
 
-  // Spawn
-  while (chartIndex < chart.length && chart[chartIndex].t - SPAWN_AHEAD <= now) {
-    spawnNote(chart[chartIndex]);
-    chartIndex++;
-  }
+  if (playing && mode === 'play') {
+    while (chartIndex < chart.length && chart[chartIndex].t - SPAWN_AHEAD <= now) {
+      spawnNote(chart[chartIndex]);
+      chartIndex++;
+    }
 
-  // Move notes
-  for (let i = notes.length - 1; i >= 0; i--) {
-    const n = notes[i];
-    n.y += NOTE_SPEED * (1/60); // approximate
-    n.el.style.top = n.y + 'px';
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      n.y += NOTE_SPEED / 60;
+      n.el.style.top = n.y + 'px';
 
-    if (n.y > HIT_Y + 70 && n.active) {
-      n.active = false;
-      miss();
-      n.el.remove();
-      notes.splice(i, 1);
+      if (n.y > HIT_Y + 80 && n.active) {
+        n.active = false;
+        miss();
+        n.el.remove();
+        notes.splice(i, 1);
+      }
     }
   }
-
   requestAnimationFrame(gameLoop);
 }
 
-// Keyboard
+// ========== INPUT ==========
 document.addEventListener('keydown', e => {
   const key = e.key.toLowerCase();
   const idx = keys.indexOf(key);
-  if (idx !== -1 && !pressed[idx]) {
+  if (idx === -1) return;
+  if (!pressed[idx]) {
     pressed[idx] = true;
     tryHit(idx);
   }
 });
-
 document.addEventListener('keyup', e => {
-  const key = e.key.toLowerCase();
-  const idx = keys.indexOf(key);
+  const idx = keys.indexOf(e.key.toLowerCase());
   if (idx !== -1) pressed[idx] = false;
 });
 
+// ========== EDITOR ==========
+game.addEventListener('click', e => {
+  if (mode !== 'edit') return;
+  const rect = game.getBoundingClientRect();
+  const x = e.clientX - rect.left;
+  const y = e.clientY - rect.top;
+  const lane = Math.floor(x / LANE_WIDTH);
+  if (lane < 0 || lane > 3) return;
+
+  // Approximate time from Y (editor is static for simplicity)
+  const time = 1 + (HIT_Y - y) / NOTE_SPEED + Math.random() * 0.1;
+  const duration = longMode || e.shiftKey ? 0.5 : 0;
+
+  chart.push({ t: Math.max(0.5, time), lane, duration });
+  chart.sort((a,b) => a.t - b.t);
+
+  // Visual feedback
+  spawnParticles(lane * LANE_WIDTH + 60, y, colors[lane], 8);
+  renderEditorNotes();
+});
+
+game.addEventListener('contextmenu', e => {
+  e.preventDefault();
+  if (mode !== 'edit') return;
+  // Simple: clear last note
+  if (chart.length) {
+    chart.pop();
+    renderEditorNotes();
+  }
+});
+
+function renderEditorNotes() {
+  // Clear old editor notes
+  document.querySelectorAll('.note').forEach(n => n.remove());
+  notes = [];
+  chart.forEach(data => {
+    const note = document.createElement('div');
+    note.className = 'note' + (data.duration > 0 ? ' long' : '');
+    note.style.background = colors[data.lane];
+    note.style.left = (data.lane * LANE_WIDTH + 10) + 'px';
+    note.style.height = data.duration > 0 ? (data.duration * NOTE_SPEED) + 'px' : '28px';
+    note.style.top = (HIT_Y - (data.t * 0.6) * NOTE_SPEED) + 'px'; // visual only
+    game.appendChild(note);
+  });
+}
+
+// ========== BUTTONS ==========
+btnPlay.onclick = () => {
+  mode = 'play';
+  btnPlay.classList.add('active');
+  btnEdit.classList.remove('active');
+  editorInfo.style.opacity = 0.3;
+  // Restart play
+  notes.forEach(n => n.el.remove());
+  notes = [];
+  chartIndex = 0;
+  score = 0; combo = 0;
+  startTime = null;
+  playing = true;
+  updateUI();
+};
+
+btnEdit.onclick = () => {
+  mode = 'edit';
+  playing = false;
+  btnEdit.classList.add('active');
+  btnPlay.classList.remove('active');
+  editorInfo.style.opacity = 1;
+  notes.forEach(n => n.el.remove());
+  notes = [];
+  renderEditorNotes();
+};
+
+btnClear.onclick = () => {
+  chart = [];
+  renderEditorNotes();
+};
+
+btnLong.onclick = () => {
+  longMode = !longMode;
+  btnLong.textContent = 'Long Note: ' + (longMode ? 'ON' : 'OFF');
+  btnLong.classList.toggle('active', longMode);
+};
+
 // Start
+playing = true;
 requestAnimationFrame(gameLoop);
 </script>
 </body>
