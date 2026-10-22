@@ -1,581 +1,202 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, maximum-scale=1.0">
-<title>Neon Dash — Geometry Dash</title>
-<style>
-  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Exo+2:wght@400;600;800&display=swap');
-  *{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
-  body{background:#02020a;overflow:hidden;font-family:'Exo 2',system-ui,sans-serif;color:#fff;height:100vh;width:100vw;display:flex;justify-content:center;align-items:center;touch-action:none;user-select:none}
-  #gameContainer{position:relative;width:100%;height:100%;max-width:1280px;max-height:720px;box-shadow:0 0 100px rgba(0,255,200,0.1);border-radius:12px;overflow:hidden}
-  canvas{display:block;width:100%;height:100%;background:#050510}
-  #ui{position:absolute;inset:0;pointer-events:none;padding:14px 18px}
-  .top-bar{display:flex;justify-content:space-between;font-family:'Orbitron',sans-serif;font-size:13px;letter-spacing:1.5px;text-shadow:0 0 12px rgba(0,255,200,0.5)}
-  .progress-container{position:absolute;top:11px;left:50%;transform:translateX(-50%);width:42%;max-width:340px;height:7px;background:rgba(255,255,255,0.07);border-radius:4px;overflow:hidden;border:1px solid rgba(0,255,200,0.12)}
-  .progress-bar{height:100%;width:0%;background:linear-gradient(90deg,#00ffc8,#00b4ff);border-radius:4px;box-shadow:0 0 14px #00ffc8;transition:width .08s linear}
-  .center-message{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;pointer-events:none;width:90%}
-  .title{font-family:'Orbitron',sans-serif;font-weight:900;font-size:clamp(2.2rem,7vw,4.2rem);background:linear-gradient(135deg,#00ffc8,#00b4ff,#ff00aa);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;filter:drop-shadow(0 0 28px rgba(0,255,200,0.4));margin-bottom:6px;letter-spacing:3px}
-  .subtitle{font-size:.95rem;opacity:.7;margin-bottom:26px;letter-spacing:4px;text-transform:uppercase}
-  .big-btn{pointer-events:auto;background:linear-gradient(135deg,#00ffc8,#00c4a0);color:#02020a;border:none;padding:14px 42px;font-family:'Orbitron',sans-serif;font-weight:700;font-size:1.05rem;border-radius:50px;cursor:pointer;letter-spacing:1.5px;box-shadow:0 0 30px rgba(0,255,200,0.5);transition:transform .15s,box-shadow .15s;margin:6px}
-  .big-btn:hover{transform:scale(1.05);box-shadow:0 0 45px rgba(0,255,200,0.7)}
-  .big-btn:active{transform:scale(.96)}
-  .level-btn{pointer-events:auto;background:rgba(0,255,200,0.08);border:2px solid rgba(0,255,200,0.35);color:#00ffc8;padding:16px 28px;font-family:'Orbitron',sans-serif;font-weight:700;font-size:1rem;border-radius:14px;cursor:pointer;letter-spacing:1px;transition:all .2s;margin:8px;min-width:240px;text-align:left}
-  .level-btn:hover{background:rgba(0,255,200,0.18);border-color:#00ffc8;transform:translateY(-2px);box-shadow:0 8px 25px rgba(0,255,200,0.25)}
-  .level-btn .diff{font-size:.75rem;opacity:.7;margin-top:4px;letter-spacing:1px}
-  .level-btn.hard{border-color:rgba(255,45,106,0.5);color:#ff6b9d}
-  .level-btn.hard:hover{background:rgba(255,45,106,0.15);border-color:#ff2d6a;box-shadow:0 8px 25px rgba(255,45,106,0.25)}
-  .hint{margin-top:20px;font-size:.85rem;opacity:.5}
-  .death-text{font-family:'Orbitron',sans-serif;font-size:2.7rem;font-weight:900;color:#ff2d6a;text-shadow:0 0 35px rgba(255,45,106,0.7);margin-bottom:10px}
-  .win-text{font-family:'Orbitron',sans-serif;font-size:2.5rem;font-weight:900;color:#00ffc8;text-shadow:0 0 35px rgba(0,255,200,0.7);margin-bottom:10px}
-  .small{font-size:1rem;opacity:.85;margin-bottom:20px}
-  #overlay,#deathOverlay,#winOverlay,#levelSelect{position:absolute;inset:0;background:rgba(2,2,10,0.82);display:flex;justify-content:center;align-items:center;pointer-events:auto;backdrop-filter:blur(6px)}
-  .hidden{display:none!important}
-  .controls-info{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);font-size:.8rem;opacity:.45;text-align:center}
-  .mode-label{font-family:'Orbitron',sans-serif;font-size:12px;letter-spacing:2px;opacity:.8;text-shadow:0 0 10px currentColor}
-</style>
-</head>
-<body>
-<div id="gameContainer">
-  <canvas id="gameCanvas"></canvas>
-  <div id="ui">
-    <div class="top-bar">
-      <div>ATTEMPT <span id="attemptCount">1</span></div>
-      <div class="mode-label" id="modeLabel">CUBE</div>
-    </div>
-    <div class="progress-container"><div class="progress-bar" id="progressBar"></div></div>
-  </div>
+extends Node2D
 
-  <div id="overlay">
-    <div class="center-message">
-      <div class="title">NEON DASH</div>
-      <div class="subtitle">Geometry Dash Style</div>
-      <button class="big-btn" id="playBtn">SELECT LEVEL</button>
-      <div class="hint">Click / Space / Tap to Jump or Fly</div>
-      <div class="controls-info">Best: L1 <span id="best1">0</span>% · L2 <span id="best2">0</span>%</div>
-    </div>
-  </div>
+# ====================== SETTINGS ======================
+const LANE_COUNT := 4
+const LANE_WIDTH := 100.0
+const NOTE_HEIGHT := 28.0
+const NOTE_SPEED := 450.0
+const SPAWN_AHEAD := 1.8          # how many seconds early notes appear
+const HIT_Y := 520.0              # Y position of the judgment line
 
-  <div id="levelSelect" class="hidden">
-    <div class="center-message">
-      <div class="title" style="font-size:clamp(1.8rem,5vw,2.8rem)">SELECT LEVEL</div>
-      <div style="margin:20px 0">
-        <button class="level-btn" id="level1Btn">
-          01 — STEREO DAWN
-          <div class="diff">NORMAL · CUBE + SHIP</div>
-        </button>
-        <button class="level-btn hard" id="level2Btn">
-          02 — NEURAL ABYSS
-          <div class="diff">INSANE DEMON · CUBE · SHIP · WAVE</div>
-        </button>
-      </div>
-      <button class="big-btn" id="backBtn" style="background:rgba(255,255,255,0.1);color:#fff;box-shadow:none;border:1px solid rgba(255,255,255,0.2)">BACK</button>
-    </div>
-  </div>
+# Timing windows (in seconds)
+const PERFECT_WINDOW := 0.06
+const GOOD_WINDOW := 0.13
 
-  <div id="deathOverlay" class="hidden">
-    <div class="center-message">
-      <div class="death-text">CRASHED</div>
-      <div class="small">Progress: <span id="deathProgress">0</span>%</div>
-      <button class="big-btn" id="retryBtn">RETRY</button>
-      <button class="big-btn" id="menuBtn" style="background:rgba(255,255,255,0.12);color:#fff;box-shadow:none">MENU</button>
-    </div>
-  </div>
+# Keys for the 4 lanes
+var keys := ["D", "F", "J", "K"]
 
-  <div id="winOverlay" class="hidden">
-    <div class="center-message">
-      <div class="win-text">LEVEL COMPLETE!</div>
-      <div class="small">Attempts: <span id="winAttempts">1</span></div>
-      <button class="big-btn" id="againBtn">PLAY AGAIN</button>
-      <button class="big-btn" id="menuBtn2" style="background:rgba(255,255,255,0.12);color:#fff;box-shadow:none">MENU</button>
-    </div>
-  </div>
-</div>
+# Simple test chart (time, lane)
+var chart := [
+	{"t": 1.0, "lane": 0},
+	{"t": 1.4, "lane": 1},
+	{"t": 1.8, "lane": 2},
+	{"t": 2.2, "lane": 3},
+	{"t": 2.6, "lane": 0},
+	{"t": 2.9, "lane": 2},
+	{"t": 3.2, "lane": 1},
+	{"t": 3.6, "lane": 3},
+	{"t": 4.0, "lane": 0},
+	{"t": 4.3, "lane": 1},
+	{"t": 4.6, "lane": 2},
+	{"t": 5.0, "lane": 3},
+	{"t": 5.4, "lane": 0},
+	{"t": 5.7, "lane": 2},
+	{"t": 6.1, "lane": 1},
+	{"t": 6.5, "lane": 3},
+	{"t": 7.0, "lane": 0},
+	{"t": 7.4, "lane": 1},
+	{"t": 7.8, "lane": 2},
+	{"t": 8.2, "lane": 3},
+]
 
-<script>
-(() => {
-  const canvas = document.getElementById('gameCanvas');
-  const ctx = canvas.getContext('2d');
+# ====================== INTERNAL ======================
+var game_time := 0.0
+var chart_index := 0
+var score := 0
+var combo := 0
+var max_combo := 0
 
-  const CONFIG = {
-    WIDTH: 960, HEIGHT: 540, GROUND_Y: 430, PLAYER_SIZE: 32,
-    RUN_SPEED: 460, GRAVITY: 2700, JUMP_FORCE: -1000,
-    SHIP_GRAVITY: 1750, SHIP_LIFT: -2050,
-    WAVE_SPEED_Y: 510,
-    ROTATION_SPEED: 12, CAMERA_OFFSET_X: 250,
-    COYOTE: 0.08, BUFFER: 0.13
-  };
+var notes: Array = []          # each note is a Dictionary
+var lane_colors := [
+	Color(0.2, 0.85, 1.0),     # cyan
+	Color(1.0, 0.35, 0.75),    # pink
+	Color(1.0, 0.9, 0.25),     # yellow
+	Color(0.35, 1.0, 0.45)     # green
+]
 
-  let state = 'menu';
-  let lastTime = 0;
-  let attempt = 1;
-  let currentLevel = 1;
-  let best = [0, parseFloat(localStorage.getItem('nd_best1')||'0'), parseFloat(localStorage.getItem('nd_best2')||'0')];
-  let progress = 0, shake = 0, gravityDir = 1, cameraX = 0, cameraY = 0;
-  let coyote = 0, jumpBuffer = 0, holding = false;
-  let mode = 'cube';
-  let audioCtx = null;
-  let particles = [];
-  let levelData = [];
-  let levelEnd = 5000;
+var start_x := 0.0
+var score_label: Label
+var combo_label: Label
+var judgment_label: Label
 
-  const player = { x:0, y:0, vy:0, rotation:0, onGround:true, dead:false, trail:[] };
+func _ready():
+	# Center the 4 lanes on screen
+	start_x = (get_viewport_rect().size.x - (LANE_COUNT * LANE_WIDTH)) / 2.0
+	
+	# Create simple UI labels
+	score_label = Label.new()
+	score_label.position = Vector2(20, 20)
+	score_label.add_theme_font_size_override("font_size", 28)
+	add_child(score_label)
+	
+	combo_label = Label.new()
+	combo_label.position = Vector2(20, 55)
+	combo_label.add_theme_font_size_override("font_size", 24)
+	add_child(combo_label)
+	
+	judgment_label = Label.new()
+	judgment_label.position = Vector2(get_viewport_rect().size.x / 2 - 60, HIT_Y - 80)
+	judgment_label.add_theme_font_size_override("font_size", 36)
+	judgment_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	add_child(judgment_label)
+	
+	update_ui()
 
-  // LEVEL 1 - Stereo Dawn (Normal)
-  const LEVEL1 = {
-    end: 5400,
-    objects: [
-      {type:'spike',x:600,y:430,w:26,h:26},
-      {type:'spike',x:900,y:430,w:26,h:26},
-      {type:'spike',x:1200,y:430,w:26,h:26},{type:'spike',x:1235,y:430,w:26,h:26},
-      {type:'block',x:1520,y:382,w:52,h:48},
-      {type:'spike',x:1700,y:430,w:26,h:26},{type:'spike',x:1735,y:430,w:26,h:26},
-      {type:'platform',x:1980,y:345,w:120,h:16},
-      {type:'spike',x:2180,y:430,w:26,h:26},
-      {type:'platform',x:2360,y:300,w:100,h:16},
-      {type:'spike',x:2540,y:430,w:26,h:26},{type:'spike',x:2575,y:430,w:26,h:26},
-      {type:'block',x:2830,y:375,w:50,h:55},
-      {type:'spike',x:3010,y:430,w:26,h:26},{type:'spike',x:3045,y:430,w:26,h:26},{type:'spike',x:3080,y:430,w:26,h:26},
-      {type:'platform',x:3310,y:355,w:95,h:15},
-      {type:'platform',x:3500,y:310,w:95,h:15},
-      {type:'platform',x:3690,y:350,w:95,h:15},
-      {type:'spike',x:3870,y:430,w:26,h:26},{type:'spike',x:3905,y:430,w:26,h:26},
-      {type:'portal',x:4120,y:300,w:34,h:130,mode:'ship'},
-      {type:'spike',x:4420,y:430,w:26,h:26},{type:'spike',x:4455,y:430,w:26,h:26},
-      {type:'block',x:4680,y:200,w:40,h:40},
-      {type:'block',x:4680,y:350,w:40,h:40},
-      {type:'portal',x:4900,y:300,w:34,h:130,mode:'cube'},
-      {type:'finish',x:5200,y:230,w:46,h:200}
-    ]
-  };
+func _process(delta):
+	game_time += delta
+	
+	# Spawn notes from chart
+	while chart_index < chart.size() and chart[chart_index].t - SPAWN_AHEAD <= game_time:
+		spawn_note(chart[chart_index])
+		chart_index += 1
+	
+	# Move notes
+	for i in range(notes.size() - 1, -1, -1):
+		var n = notes[i]
+		n.y += NOTE_SPEED * delta
+		n.node.position.y = n.y
+		
+		# Auto miss
+		if n.y > HIT_Y + 70 and n.active:
+			n.active = false
+			miss()
+			n.node.queue_free()
+			notes.remove_at(i)
+	
+	# Input
+	for i in range(LANE_COUNT):
+		if Input.is_key_pressed(OS.find_keycode_from_string(keys[i])) and Input.is_action_just_pressed("ui_accept") == false:
+			# Better way:
+			pass
+	
+	# Proper key detection
+	for i in range(LANE_COUNT):
+		var keycode = OS.find_keycode_from_string(keys[i])
+		if Input.is_physical_key_pressed(keycode) and not get_meta("key_" + str(i), false):
+			set_meta("key_" + str(i), true)
+			try_hit(i)
+		elif not Input.is_physical_key_pressed(keycode):
+			set_meta("key_" + str(i), false)
 
-  // LEVEL 2 - Neural Abyss (Insane Demon style)
-  // Dense, multi-mode, beautiful, extremely hard but humanly possible
-  const LEVEL2 = {
-    end: 12200,
-    objects: [
-      // Intro cube - brutal warmup
-      {type:'spike',x:480,y:430,w:24,h:24},
-      {type:'spike',x:680,y:430,w:24,h:24},{type:'spike',x:712,y:430,w:24,h:24},
-      {type:'spike',x:930,y:430,w:24,h:24},{type:'spike',x:962,y:430,w:24,h:24},{type:'spike',x:994,y:430,w:24,h:24},
-      {type:'block',x:1230,y:380,w:44,h:50},
-      {type:'spike',x:1400,y:430,w:24,h:24},{type:'spike',x:1432,y:430,w:24,h:24},
-      {type:'platform',x:1630,y:340,w:80,h:14},
-      {type:'spike',x:1780,y:430,w:24,h:24},{type:'spike',x:1812,y:430,w:24,h:24},{type:'spike',x:1844,y:430,w:24,h:24},
-      {type:'platform',x:2030,y:300,w:70,h:14},
-      {type:'platform',x:2180,y:255,w:70,h:14},
-      {type:'spike',x:2330,y:430,w:24,h:24},{type:'spike',x:2362,y:430,w:24,h:24},
+func spawn_note(data: Dictionary):
+	var note_node = ColorRect.new()
+	note_node.size = Vector2(LANE_WIDTH - 12, NOTE_HEIGHT)
+	note_node.color = lane_colors[data.lane]
+	note_node.position = Vector2(
+		start_x + data.lane * LANE_WIDTH + 6,
+		HIT_Y - (SPAWN_AHEAD * NOTE_SPEED)
+	)
+	add_child(note_node)
+	
+	notes.append({
+		"node": note_node,
+		"lane": data.lane,
+		"time": data.t,
+		"y": note_node.position.y,
+		"active": true
+	})
 
-      // First Ship - tight corridors
-      {type:'portal',x:2520,y:280,w:32,h:140,mode:'ship'},
-      {type:'spike',x:2720,y:430,w:22,h:22},{type:'spike',x:2750,y:430,w:22,h:22},
-      {type:'spike',x:2720,y:55,w:22,h:22,upsideDown:true},{type:'spike',x:2750,y:55,w:22,h:22,upsideDown:true},
-      {type:'block',x:2920,y:180,w:34,h:34},
-      {type:'block',x:2920,y:320,w:34,h:34},
-      {type:'spike',x:3090,y:430,w:22,h:22},{type:'spike',x:3120,y:430,w:22,h:22},{type:'spike',x:3150,y:430,w:22,h:22},
-      {type:'spike',x:3090,y:55,w:22,h:22,upsideDown:true},{type:'spike',x:3120,y:55,w:22,h:22,upsideDown:true},
-      {type:'block',x:3320,y:150,w:28,h:28},
-      {type:'block',x:3320,y:250,w:28,h:28},
-      {type:'block',x:3320,y:350,w:28,h:28},
-      {type:'spike',x:3490,y:430,w:22,h:22},{type:'spike',x:3520,y:430,w:22,h:22},
-      {type:'spike',x:3490,y:55,w:22,h:22,upsideDown:true},
+func try_hit(lane: int):
+	var best_note = null
+	var best_diff = 999.0
+	
+	for n in notes:
+		if n.lane == lane and n.active:
+			var diff = abs(game_time - n.time)
+			if diff < best_diff:
+				best_diff = diff
+				best_note = n
+	
+	if best_note == null:
+		return
+	
+	if best_diff <= PERFECT_WINDOW:
+		hit_note(best_note, "Perfect", 300)
+	elif best_diff <= GOOD_WINDOW:
+		hit_note(best_note, "Good", 100)
+	# else: too early/late → do nothing (player can try again)
 
-      // Wave section
-      {type:'portal',x:3720,y:280,w:32,h:140,mode:'wave'},
-      {type:'spike',x:3920,y:430,w:20,h:20},{type:'spike',x:3950,y:430,w:20,h:20},
-      {type:'spike',x:3920,y:55,w:20,h:20,upsideDown:true},{type:'spike',x:3950,y:55,w:20,h:20,upsideDown:true},
-      {type:'block',x:4120,y:200,w:26,h:80},
-      {type:'block',x:4270,y:280,w:26,h:80},
-      {type:'spike',x:4420,y:430,w:20,h:20},{type:'spike',x:4450,y:430,w:20,h:20},{type:'spike',x:4480,y:430,w:20,h:20},
-      {type:'spike',x:4420,y:55,w:20,h:20,upsideDown:true},{type:'spike',x:4450,y:55,w:20,h:20,upsideDown:true},
-      {type:'block',x:4670,y:160,w:24,h:60},
-      {type:'block',x:4670,y:320,w:24,h:60},
-      {type:'spike',x:4870,y:430,w:20,h:20},{type:'spike',x:4900,y:430,w:20,h:20},
-      {type:'spike',x:4870,y:55,w:20,h:20,upsideDown:true},
+func hit_note(n: Dictionary, judgment: String, points: int):
+	n.active = false
+	score += points
+	combo += 1
+	max_combo = max(max_combo, combo)
+	
+	# Visual feedback
+	n.node.color = Color.WHITE
+	judgment_label.text = judgment
+	judgment_label.modulate = Color.WHITE
+	
+	# Simple flash effect
+	var tween = create_tween()
+	tween.tween_property(n.node, "modulate:a", 0.0, 0.15)
+	tween.tween_callback(n.node.queue_free)
+	
+	# Fade judgment text
+	var t2 = create_tween()
+	t2.tween_property(judgment_label, "modulate:a", 0.0, 0.6)
+	
+	notes.erase(n)
+	update_ui()
 
-      // Cube return
-      {type:'portal',x:5120,y:280,w:32,h:140,mode:'cube'},
-      {type:'spike',x:5370,y:430,w:24,h:24},{type:'spike',x:5402,y:430,w:24,h:24},{type:'spike',x:5434,y:430,w:24,h:24},{type:'spike',x:5466,y:430,w:24,h:24},
-      {type:'platform',x:5670,y:340,w:70,h:13},
-      {type:'spike',x:5820,y:430,w:24,h:24},{type:'spike',x:5852,y:430,w:24,h:24},
-      {type:'platform',x:6020,y:290,w:60,h:13},
-      {type:'platform',x:6170,y:240,w:60,h:13},
-      {type:'spike',x:6320,y:430,w:24,h:24},{type:'spike',x:6352,y:430,w:24,h:24},{type:'spike',x:6384,y:430,w:24,h:24},
+func miss():
+	combo = 0
+	judgment_label.text = "Miss"
+	judgment_label.modulate = Color(1, 0.3, 0.3)
+	var t = create_tween()
+	t.tween_property(judgment_label, "modulate:a", 0.0, 0.5)
+	update_ui()
 
-      // Second Ship - tighter
-      {type:'portal',x:6620,y:280,w:32,h:140,mode:'ship'},
-      {type:'block',x:6820,y:120,w:26,h:26},
-      {type:'block',x:6820,y:200,w:26,h:26},
-      {type:'block',x:6820,y:280,w:26,h:26},
-      {type:'block',x:6820,y:360,w:26,h:26},
-      {type:'spike',x:7020,y:430,w:20,h:20},{type:'spike',x:7050,y:430,w:20,h:20},
-      {type:'spike',x:7020,y:55,w:20,h:20,upsideDown:true},{type:'spike',x:7050,y:55,w:20,h:20,upsideDown:true},
-      {type:'block',x:7220,y:160,w:24,h:50},
-      {type:'block',x:7220,y:320,w:24,h:50},
-      {type:'spike',x:7420,y:430,w:20,h:20},{type:'spike',x:7450,y:430,w:20,h:20},{type:'spike',x:7480,y:430,w:20,h:20},
-      {type:'spike',x:7420,y:55,w:20,h:20,upsideDown:true},
+func update_ui():
+	score_label.text = "Score: " + str(score)
+	combo_label.text = "Combo: " + str(combo)
 
-      // Final Wave Hell
-      {type:'portal',x:7720,y:280,w:32,h:140,mode:'wave'},
-      {type:'block',x:7920,y:140,w:22,h:70},
-      {type:'block',x:8070,y:260,w:22,h:70},
-      {type:'block',x:8220,y:180,w:22,h:70},
-      {type:'spike',x:8370,y:430,w:18,h:18},{type:'spike',x:8395,y:430,w:18,h:18},{type:'spike',x:8420,y:430,w:18,h:18},
-      {type:'spike',x:8370,y:55,w:18,h:18,upsideDown:true},{type:'spike',x:8395,y:55,w:18,h:18,upsideDown:true},
-      {type:'block',x:8620,y:150,w:20,h:55},
-      {type:'block',x:8620,y:320,w:20,h:55},
-      {type:'spike',x:8820,y:430,w:18,h:18},{type:'spike',x:8845,y:430,w:18,h:18},
-      {type:'spike',x:8820,y:55,w:18,h:18,upsideDown:true},{type:'spike',x:8845,y:55,w:18,h:18,upsideDown:true},
-      {type:'block',x:9070,y:200,w:20,h:90},
-      {type:'spike',x:9270,y:430,w:18,h:18},{type:'spike',x:9295,y:430,w:18,h:18},{type:'spike',x:9320,y:430,w:18,h:18},{type:'spike',x:9345,y:430,w:18,h:18},
-      {type:'spike',x:9270,y:55,w:18,h:18,upsideDown:true},{type:'spike',x:9295,y:55,w:18,h:18,upsideDown:true},
-
-      // Final cube dash
-      {type:'portal',x:9620,y:280,w:32,h:140,mode:'cube'},
-      {type:'spike',x:9870,y:430,w:24,h:24},{type:'spike',x:9902,y:430,w:24,h:24},{type:'spike',x:9934,y:430,w:24,h:24},
-      {type:'platform',x:10120,y:340,w:65,h:13},
-      {type:'spike',x:10270,y:430,w:24,h:24},{type:'spike',x:10302,y:430,w:24,h:24},
-      {type:'platform',x:10470,y:295,w:55,h:13},
-      {type:'platform',x:10620,y:250,w:55,h:13},
-      {type:'spike',x:10790,y:430,w:24,h:24},{type:'spike',x:10822,y:430,w:24,h:24},{type:'spike',x:10854,y:430,w:24,h:24},{type:'spike',x:10886,y:430,w:24,h:24},
-      {type:'block',x:11120,y:370,w:48,h:60},
-      {type:'spike',x:11290,y:430,w:24,h:24},{type:'spike',x:11322,y:430,w:24,h:24},
-      {type:'finish',x:11650,y:220,w:50,h:210}
-    ]
-  };
-
-  function initAudio(){ if(!audioCtx) audioCtx = new (window.AudioContext||window.webkitAudioContext)(); }
-  function playTone(f,d,t='square',v=0.06){
-    if(!audioCtx) return;
-    try{
-      const o=audioCtx.createOscillator(),g=audioCtx.createGain();
-      o.type=t; o.frequency.value=f;
-      g.gain.setValueAtTime(v,audioCtx.currentTime);
-      g.gain.exponentialRampToValueAtTime(0.001,audioCtx.currentTime+d);
-      o.connect(g); g.connect(audioCtx.destination); o.start(); o.stop(audioCtx.currentTime+d);
-    }catch(e){}
-  }
-  function playJump(){ playTone(500,0.06); setTimeout(()=>playTone(750,0.04),30); }
-  function playDeath(){ playTone(150,0.2,'sawtooth',0.08); setTimeout(()=>playTone(70,0.25,'sawtooth',0.06),60); }
-  function playPortal(){ playTone(300,0.08,'sine'); setTimeout(()=>playTone(500,0.1,'sine'),50); setTimeout(()=>playTone(750,0.12,'sine'),100); }
-  function playWin(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>playTone(f,0.16),i*100)); }
-
-  function spawn(x,y,color,n=12,spd=180){
-    for(let i=0;i<n;i++){
-      const a=Math.random()*Math.PI*2, s=spd*(0.3+Math.random()*0.9);
-      particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s-30,life:0.4+Math.random()*0.35,max:0.4+Math.random()*0.35,size:2+Math.random()*3.5,color});
-    }
-  }
-
-  function press(){
-    if(state==='playing' && !player.dead){ holding=true; jumpBuffer=CONFIG.BUFFER; }
-  }
-  function release(){ holding=false; }
-
-  window.addEventListener('keydown', e=>{
-    if(['Space','ArrowUp','KeyW'].includes(e.code)){
-      e.preventDefault();
-      if(state==='menu') showLevelSelect();
-      else if(state==='dead'||state==='win') restart();
-      else press();
-    }
-    if(e.code==='KeyR' && (state==='playing'||state==='dead')) restart();
-    if(e.code==='Escape') showMenu();
-  });
-  window.addEventListener('keyup', e=>{ if(['Space','ArrowUp','KeyW'].includes(e.code)) release(); });
-  canvas.addEventListener('mousedown', e=>{ e.preventDefault(); if(state==='playing') press(); });
-  canvas.addEventListener('mouseup', ()=> release());
-  canvas.addEventListener('touchstart', e=>{ e.preventDefault(); if(state==='playing') press(); else if(state==='menu') showLevelSelect(); }, {passive:false});
-  canvas.addEventListener('touchend', ()=> release());
-
-  document.getElementById('playBtn').onclick = showLevelSelect;
-  document.getElementById('backBtn').onclick = showMenu;
-  document.getElementById('level1Btn').onclick = ()=> startLevel(1);
-  document.getElementById('level2Btn').onclick = ()=> startLevel(2);
-  document.getElementById('retryBtn').onclick = restart;
-  document.getElementById('againBtn').onclick = restart;
-  document.getElementById('menuBtn').onclick = showMenu;
-  document.getElementById('menuBtn2').onclick = showMenu;
-
-  function showMenu(){
-    state='menu';
-    document.getElementById('overlay').classList.remove('hidden');
-    document.getElementById('levelSelect').classList.add('hidden');
-    document.getElementById('deathOverlay').classList.add('hidden');
-    document.getElementById('winOverlay').classList.add('hidden');
-    document.getElementById('best1').textContent = Math.floor(best[1]);
-    document.getElementById('best2').textContent = Math.floor(best[2]);
-  }
-  function showLevelSelect(){
-    state='levelselect';
-    document.getElementById('overlay').classList.add('hidden');
-    document.getElementById('levelSelect').classList.remove('hidden');
-  }
-  function startLevel(n){
-    initAudio(); if(audioCtx.state==='suspended') audioCtx.resume();
-    currentLevel=n;
-    levelData=(n===1?LEVEL1:LEVEL2).objects.map(o=>({...o}));
-    levelEnd=(n===1?LEVEL1:LEVEL2).end;
-    state='playing'; attempt=1;
-    document.getElementById('attemptCount').textContent=attempt;
-    document.getElementById('levelSelect').classList.add('hidden');
-    document.getElementById('deathOverlay').classList.add('hidden');
-    document.getElementById('winOverlay').classList.add('hidden');
-    resetPlayer();
-  }
-  function restart(){
-    initAudio(); if(audioCtx&&audioCtx.state==='suspended') audioCtx.resume();
-    state='playing'; attempt++;
-    document.getElementById('attemptCount').textContent=attempt;
-    document.getElementById('deathOverlay').classList.add('hidden');
-    document.getElementById('winOverlay').classList.add('hidden');
-    levelData=(currentLevel===1?LEVEL1:LEVEL2).objects.map(o=>({...o}));
-    resetPlayer();
-  }
-  function resetPlayer(){
-    player.x=90; player.y=CONFIG.GROUND_Y-CONFIG.PLAYER_SIZE;
-    player.vy=0; player.rotation=0; player.onGround=true; player.dead=false; player.trail=[];
-    gravityDir=1; mode='cube'; cameraX=0; cameraY=0; progress=0; particles=[]; shake=0;
-    coyote=0; jumpBuffer=0; holding=false; updateModeLabel();
-  }
-  function die(){
-    if(player.dead) return;
-    player.dead=true; state='dead'; playDeath(); shake=15;
-    const cx=player.x+16, cy=player.y+16;
-    spawn(cx,cy,'#ff2d6a',30,320); spawn(cx,cy,'#fff',12,200);
-    const pct=Math.floor(progress*100);
-    document.getElementById('deathProgress').textContent=pct;
-    if(pct>best[currentLevel]){ best[currentLevel]=pct; localStorage.setItem('nd_best'+currentLevel,String(pct)); }
-    setTimeout(()=>{ if(state==='dead') document.getElementById('deathOverlay').classList.remove('hidden'); },500);
-  }
-  function win(){
-    state='win'; playWin(); spawn(player.x+16,player.y+16,'#00ffc8',50,280);
-    document.getElementById('winAttempts').textContent=attempt;
-    best[currentLevel]=100; localStorage.setItem('nd_best'+currentLevel,'100');
-    setTimeout(()=>document.getElementById('winOverlay').classList.remove('hidden'),350);
-  }
-  function updateModeLabel(){
-    const el=document.getElementById('modeLabel');
-    el.textContent=mode.toUpperCase();
-    el.style.color=mode==='cube'?'#00ffc8':mode==='ship'?'#00b4ff':'#ff00aa';
-  }
-
-  function rects(a,b){ return a.x<b.x+b.w && a.x+a.w>b.x && a.y<b.y+b.h && a.y+a.h>b.y; }
-  function hitbox(){
-    const i=mode==='wave'?6:5;
-    return {x:player.x+i,y:player.y+i,w:CONFIG.PLAYER_SIZE-i*2,h:CONFIG.PLAYER_SIZE-i*2};
-  }
-
-  function update(dt){
-    for(let i=particles.length-1;i>=0;i--){
-      const p=particles[i]; p.x+=p.vx*dt; p.y+=p.vy*dt; p.vy+=500*dt; p.life-=dt;
-      if(p.life<=0) particles.splice(i,1);
-    }
-    if(shake>0){ shake*=Math.pow(0.86,dt*60); if(shake<0.3) shake=0; }
-    if(state!=='playing'||player.dead) return;
-
-    if(jumpBuffer>0) jumpBuffer-=dt;
-    if(coyote>0) coyote-=dt;
-    player.x += CONFIG.RUN_SPEED * dt;
-
-    if(mode==='cube'){
-      const canJump=player.onGround||coyote>0;
-      if((holding||jumpBuffer>0)&&canJump){
-        player.vy=CONFIG.JUMP_FORCE*gravityDir; player.onGround=false; coyote=0; jumpBuffer=0;
-        playJump(); spawn(player.x+16,gravityDir===1?player.y+32:player.y,'#00ffc8',8,120);
-      }
-      player.vy += CONFIG.GRAVITY*gravityDir*dt;
-      if(gravityDir===1&&player.vy>1300) player.vy=1300;
-      if(gravityDir===-1&&player.vy<-1300) player.vy=-1300;
-      player.y += player.vy*dt;
-      if(!player.onGround) player.rotation += CONFIG.ROTATION_SPEED*gravityDir*dt;
-      else { const sn=Math.round(player.rotation/(Math.PI/2))*(Math.PI/2); player.rotation+=(sn-player.rotation)*Math.min(1,16*dt); }
-    }
-    else if(mode==='ship'){
-      if(holding) player.vy += CONFIG.SHIP_LIFT*dt;
-      else player.vy += CONFIG.SHIP_GRAVITY*dt;
-      player.vy = Math.max(-880,Math.min(880,player.vy));
-      player.y += player.vy*dt;
-      player.rotation = player.vy*0.00115;
-    }
-    else if(mode==='wave'){
-      const dir = holding ? -1 : 1;
-      player.vy = dir * CONFIG.WAVE_SPEED_Y;
-      player.y += player.vy * dt;
-      player.rotation = dir * 0.55;
-    }
-
-    const groundY=CONFIG.GROUND_Y-CONFIG.PLAYER_SIZE, ceilY=50;
-    if(player.y>=groundY){ player.y=groundY; player.vy=0; if(mode==='cube'){player.onGround=true;coyote=CONFIG.COYOTE;} }
-    else if(mode==='cube') player.onGround=false;
-    if(player.y<=ceilY){ player.y=ceilY; player.vy=0; }
-
-    const pr=hitbox();
-    for(const obj of levelData){
-      if(obj.type==='platform'||obj.type==='block'){
-        const o={x:obj.x,y:obj.y,w:obj.w,h:obj.h};
-        if(rects(pr,o)){
-          if(mode==='cube'){
-            if(player.vy>=0 && (player.y+CONFIG.PLAYER_SIZE-player.vy*dt)<=obj.y+14){
-              player.y=obj.y-CONFIG.PLAYER_SIZE; player.vy=0; player.onGround=true; coyote=CONFIG.COYOTE;
-            } else if(player.vy<0 && player.y-player.vy*dt>=obj.y+obj.h-12){
-              player.y=obj.y+obj.h; player.vy=0;
-            } else { die(); return; }
-          } else { die(); return; }
-        }
-      }
-      if(obj.type==='spike'){
-        const hit={x:obj.x+4,y:obj.upsideDown?obj.y:obj.y-obj.h+6,w:obj.w-8,h:obj.h-7};
-        if(rects(pr,hit)){ die(); return; }
-      }
-      if(obj.type==='portal'&&!obj.used){
-        const por={x:obj.x,y:obj.y,w:obj.w,h:obj.h};
-        if(rects(pr,por)){
-          obj.used=true; mode=obj.mode||'cube'; player.vy*=0.3; player.onGround=false; coyote=0;
-          playPortal();
-          const col=mode==='ship'?'#00b4ff':mode==='wave'?'#ff00aa':'#00ffc8';
-          spawn(obj.x+16,obj.y+70,col,24,230); updateModeLabel();
-        }
-      }
-      if(obj.type==='finish'&&player.x+CONFIG.PLAYER_SIZE>obj.x){ win(); return; }
-    }
-
-    player.trail.push({x:player.x+16,y:player.y+16,life:0.28});
-    if(player.trail.length>14) player.trail.shift();
-    for(const t of player.trail) t.life-=dt;
-
-    progress=Math.min(1,player.x/levelEnd);
-    document.getElementById('progressBar').style.width=(progress*100)+'%';
-    const tx=player.x-CONFIG.CAMERA_OFFSET_X;
-    cameraX+=(tx-cameraX)*Math.min(1,9*dt);
-    const ty=Math.max(0,(CONFIG.GROUND_Y-260)-player.y)*0.2;
-    cameraY+=(ty-cameraY)*Math.min(1,5*dt);
-  }
-
-  function drawBG(){
-    const g=ctx.createLinearGradient(0,0,0,CONFIG.HEIGHT);
-    if(currentLevel===2){ g.addColorStop(0,'#0a0518'); g.addColorStop(0.5,'#120820'); g.addColorStop(1,'#080412'); }
-    else { g.addColorStop(0,'#05051a'); g.addColorStop(0.5,'#09091f'); g.addColorStop(1,'#04040e'); }
-    ctx.fillStyle=g; ctx.fillRect(0,0,CONFIG.WIDTH,CONFIG.HEIGHT);
-    ctx.save(); ctx.globalAlpha=0.28;
-    for(let i=0;i<60;i++){
-      const sx=((i*91-cameraX*0.22)%(CONFIG.WIDTH+100))-50;
-      const sy=(i*53+20)%CONFIG.HEIGHT;
-      ctx.fillStyle=currentLevel===2?(i%4===0?'#ff00aa':'#a070ff'):(i%4===0?'#00ffc8':'#88aaff');
-      ctx.beginPath(); ctx.arc(sx,sy,i%5===0?1.7:0.9,0,Math.PI*2); ctx.fill();
-    }
-    ctx.restore();
-    ctx.save(); ctx.globalAlpha=currentLevel===2?0.07:0.045; ctx.strokeStyle=currentLevel===2?'#ff00aa':'#00ffc8'; ctx.lineWidth=1;
-    const grid=65, off=-(cameraX*0.4)%grid;
-    for(let x=off;x<CONFIG.WIDTH+grid;x+=grid){ ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CONFIG.HEIGHT); ctx.stroke(); }
-    ctx.restore();
-  }
-
-  function drawGround(){
-    ctx.fillStyle=currentLevel===2?'#100818':'#0d0d22';
-    ctx.fillRect(0,CONFIG.GROUND_Y-cameraY,CONFIG.WIDTH,CONFIG.HEIGHT-CONFIG.GROUND_Y+50);
-    ctx.strokeStyle=currentLevel===2?'#ff00aa':'#00ffc8';
-    ctx.lineWidth=3; ctx.shadowColor=ctx.strokeStyle; ctx.shadowBlur=14;
-    ctx.beginPath(); ctx.moveTo(0,CONFIG.GROUND_Y-cameraY); ctx.lineTo(CONFIG.WIDTH,CONFIG.GROUND_Y-cameraY); ctx.stroke();
-    ctx.shadowBlur=0;
-    ctx.strokeStyle='rgba(255,0,170,0.4)'; ctx.lineWidth=2;
-    ctx.beginPath(); ctx.moveTo(0,50-cameraY); ctx.lineTo(CONFIG.WIDTH,50-cameraY); ctx.stroke();
-  }
-
-  function drawPlayer(){
-    const px=player.x-cameraX, py=player.y-cameraY;
-    for(const t of player.trail){
-      if(t.life<=0) continue;
-      const a=t.life/0.28; ctx.globalAlpha=a*0.4;
-      ctx.fillStyle=mode==='ship'?'#00b4ff':mode==='wave'?'#ff00aa':'#00ffc8';
-      ctx.beginPath(); ctx.arc(t.x-cameraX,t.y-cameraY,3.2*a,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1;
-    ctx.save();
-    ctx.translate(px+CONFIG.PLAYER_SIZE/2, py+CONFIG.PLAYER_SIZE/2);
-    ctx.rotate(player.rotation);
-    const col=mode==='ship'?'#00b4ff':mode==='wave'?'#ff00aa':'#00ffc8';
-    ctx.shadowColor=col; ctx.shadowBlur=18;
-    if(mode==='cube'){
-      const h=CONFIG.PLAYER_SIZE/2;
-      ctx.fillStyle=col; ctx.fillRect(-h,-h,CONFIG.PLAYER_SIZE,CONFIG.PLAYER_SIZE);
-      ctx.shadowBlur=0; ctx.fillStyle='#060612';
-      ctx.fillRect(-h+5,-h+5,CONFIG.PLAYER_SIZE-10,CONFIG.PLAYER_SIZE-10);
-      ctx.fillStyle=col; ctx.fillRect(-5,-6,10,4); ctx.fillRect(-6,2,5,5); ctx.fillRect(1,2,5,5);
-    } else if(mode==='ship'){
-      ctx.fillStyle=col;
-      ctx.beginPath(); ctx.moveTo(18,0); ctx.lineTo(-14,-12); ctx.lineTo(-8,0); ctx.lineTo(-14,12); ctx.closePath(); ctx.fill();
-      ctx.shadowBlur=0; ctx.fillStyle='#060612';
-      ctx.beginPath(); ctx.moveTo(8,0); ctx.lineTo(-6,-6); ctx.lineTo(-3,0); ctx.lineTo(-6,6); ctx.closePath(); ctx.fill();
-    } else {
-      ctx.fillStyle=col;
-      ctx.beginPath(); ctx.moveTo(0,-14); ctx.lineTo(12,0); ctx.lineTo(0,14); ctx.lineTo(-12,0); ctx.closePath(); ctx.fill();
-      ctx.shadowBlur=0; ctx.fillStyle='#060612';
-      ctx.beginPath(); ctx.moveTo(0,-7); ctx.lineTo(6,0); ctx.lineTo(0,7); ctx.lineTo(-6,0); ctx.closePath(); ctx.fill();
-    }
-    ctx.restore();
-  }
-
-  function drawObj(obj){
-    const ox=obj.x-cameraX, oy=obj.y-cameraY;
-    if(ox+(obj.w||40)<-50||ox>CONFIG.WIDTH+50) return;
-    if(obj.type==='spike'){
-      ctx.save(); ctx.shadowColor='#ff2d6a'; ctx.shadowBlur=11; ctx.fillStyle='#ff2d6a';
-      ctx.beginPath();
-      if(obj.upsideDown){ ctx.moveTo(ox,oy+obj.h); ctx.lineTo(ox+obj.w/2,oy); ctx.lineTo(ox+obj.w,oy+obj.h); }
-      else { ctx.moveTo(ox,oy); ctx.lineTo(ox+obj.w/2,oy-obj.h); ctx.lineTo(ox+obj.w,oy); }
-      ctx.closePath(); ctx.fill(); ctx.shadowBlur=0; ctx.restore();
-    } else if(obj.type==='block'||obj.type==='platform'){
-      const c=obj.type==='platform'?'#00b4ff':(currentLevel===2?'#c040ff':'#00ffc8');
-      ctx.save(); ctx.shadowColor=c; ctx.shadowBlur=9; ctx.fillStyle=c;
-      ctx.fillRect(ox,oy,obj.w,obj.h); ctx.shadowBlur=0;
-      ctx.fillStyle='#060612'; ctx.fillRect(ox+3,oy+3,obj.w-6,obj.h-6); ctx.restore();
-    } else if(obj.type==='portal'){
-      const col=obj.mode==='ship'?'#00b4ff':obj.mode==='wave'?'#ff00aa':'#00ffc8';
-      const g=ctx.createLinearGradient(ox,oy,ox+obj.w,oy);
-      g.addColorStop(0,'rgba(0,0,0,0)'); g.addColorStop(0.5,col); g.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=g; ctx.fillRect(ox,oy,obj.w,obj.h);
-      ctx.strokeStyle=col; ctx.lineWidth=2.5; ctx.shadowColor=col; ctx.shadowBlur=16;
-      ctx.strokeRect(ox+4,oy+10,obj.w-8,obj.h-20); ctx.shadowBlur=0;
-      ctx.fillStyle=col; ctx.font='bold 11px Orbitron'; ctx.textAlign='center';
-      ctx.fillText(obj.mode==='ship'?'SHIP':obj.mode==='wave'?'WAVE':'CUBE', ox+obj.w/2, oy+obj.h/2+4);
-    } else if(obj.type==='finish'){
-      ctx.save(); ctx.shadowColor='#00ffc8'; ctx.shadowBlur=20;
-      const g=ctx.createLinearGradient(ox,oy,ox,oy+obj.h);
-      g.addColorStop(0,'rgba(0,255,200,0.9)'); g.addColorStop(1,'rgba(0,255,200,0.05)');
-      ctx.fillStyle=g; ctx.fillRect(ox,oy,obj.w,obj.h);
-      ctx.fillStyle='rgba(255,255,255,0.85)';
-      for(let i=0;i<8;i++) for(let j=0;j<2;j++) if((i+j)%2===0) ctx.fillRect(ox+j*25,oy+i*26,25,26);
-      ctx.restore();
-    }
-  }
-
-  function render(){
-    ctx.save();
-    if(shake>0) ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
-    drawBG(); drawGround();
-    for(const o of levelData) drawObj(o);
-    if(!player.dead||state==='playing') drawPlayer();
-    for(const p of particles){
-      ctx.globalAlpha=Math.max(0,p.life/p.max); ctx.fillStyle=p.color;
-      ctx.beginPath(); ctx.arc(p.x-cameraX,p.y-cameraY,p.size,0,Math.PI*2); ctx.fill();
-    }
-    ctx.globalAlpha=1; ctx.restore();
-  }
-
-  function resize(){ canvas.width=CONFIG.WIDTH; canvas.height=CONFIG.HEIGHT; }
-  window.addEventListener('resize',resize); resize();
-  document.getElementById('best1').textContent=Math.floor(best[1]);
-  document.getElementById('best2').textContent=Math.floor(best[2]);
-
-  function loop(ts){
-    if(!lastTime) lastTime=ts;
-    let dt=(ts-lastTime)/1000; lastTime=ts; dt=Math.min(dt,0.033);
-    update(dt); render();
-    requestAnimationFrame(loop);
-  }
-  requestAnimationFrame(loop);
-})();
-</script>
-</body>
-</html>
+func _draw():
+	# Draw the 4 lanes background
+	for i in range(LANE_COUNT):
+		var x = start_x + i * LANE_WIDTH
+		draw_rect(Rect2(x, 40, LANE_WIDTH, HIT_Y - 40), Color(0.12, 0.12, 0.15))
+		draw_rect(Rect2(x, 40, LANE_WIDTH, HIT_Y - 40), Color(0.25, 0.25, 0.3), false, 2.0)
+	
+	# Draw the hit line
+	draw_rect(Rect2(start_x, HIT_Y - 4, LANE_COUNT * LANE_WIDTH, 8), Color(1, 1, 1, 0.85))
