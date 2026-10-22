@@ -1,202 +1,266 @@
-extends Node2D
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>4-Lane Rhythm Game</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    background: #0d0d12;
+    color: white;
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+    height: 100vh;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+  }
+  #game {
+    position: relative;
+    width: 480px;
+    height: 640px;
+    background: #15151c;
+    border: 3px solid #333;
+    overflow: hidden;
+  }
+  .lane {
+    position: absolute;
+    top: 0;
+    width: 120px;
+    height: 100%;
+    border-right: 1px solid #2a2a35;
+  }
+  .lane:last-child { border-right: none; }
+  .hit-line {
+    position: absolute;
+    bottom: 80px;
+    left: 0;
+    width: 100%;
+    height: 8px;
+    background: white;
+    opacity: 0.85;
+    z-index: 10;
+  }
+  .note {
+    position: absolute;
+    width: 100px;
+    height: 28px;
+    border-radius: 6px;
+    left: 10px;
+  }
+  #score {
+    position: absolute;
+    top: 20px;
+    left: 20px;
+    font-size: 28px;
+    z-index: 20;
+  }
+  #combo {
+    position: absolute;
+    top: 55px;
+    left: 20px;
+    font-size: 22px;
+    z-index: 20;
+  }
+  #judgment {
+    position: absolute;
+    top: 45%;
+    left: 50%;
+    transform: translateX(-50%);
+    font-size: 42px;
+    font-weight: bold;
+    opacity: 0;
+    z-index: 30;
+    pointer-events: none;
+  }
+  .keys {
+    position: absolute;
+    bottom: 20px;
+    width: 100%;
+    display: flex;
+    justify-content: space-around;
+    font-size: 20px;
+    opacity: 0.5;
+  }
+</style>
+</head>
+<body>
 
-# ====================== SETTINGS ======================
-const LANE_COUNT := 4
-const LANE_WIDTH := 100.0
-const NOTE_HEIGHT := 28.0
-const NOTE_SPEED := 450.0
-const SPAWN_AHEAD := 1.8          # how many seconds early notes appear
-const HIT_Y := 520.0              # Y position of the judgment line
+<div id="game">
+  <div id="score">Score: 0</div>
+  <div id="combo">Combo: 0</div>
+  <div id="judgment"></div>
+  <div class="hit-line"></div>
+  <div class="keys">
+    <span>D</span><span>F</span><span>J</span><span>K</span>
+  </div>
+</div>
 
-# Timing windows (in seconds)
-const PERFECT_WINDOW := 0.06
-const GOOD_WINDOW := 0.13
+<script>
+const canvas = document.getElementById('game');
+const scoreEl = document.getElementById('score');
+const comboEl = document.getElementById('combo');
+const judgmentEl = document.getElementById('judgment');
 
-# Keys for the 4 lanes
-var keys := ["D", "F", "J", "K"]
+// Settings
+const LANE_COUNT = 4;
+const LANE_WIDTH = 120;
+const NOTE_SPEED = 480;          // pixels per second
+const SPAWN_AHEAD = 1.8;         // seconds
+const HIT_Y = 560;               // hit line Y
+const PERFECT = 0.07;
+const GOOD = 0.14;
 
-# Simple test chart (time, lane)
-var chart := [
-	{"t": 1.0, "lane": 0},
-	{"t": 1.4, "lane": 1},
-	{"t": 1.8, "lane": 2},
-	{"t": 2.2, "lane": 3},
-	{"t": 2.6, "lane": 0},
-	{"t": 2.9, "lane": 2},
-	{"t": 3.2, "lane": 1},
-	{"t": 3.6, "lane": 3},
-	{"t": 4.0, "lane": 0},
-	{"t": 4.3, "lane": 1},
-	{"t": 4.6, "lane": 2},
-	{"t": 5.0, "lane": 3},
-	{"t": 5.4, "lane": 0},
-	{"t": 5.7, "lane": 2},
-	{"t": 6.1, "lane": 1},
-	{"t": 6.5, "lane": 3},
-	{"t": 7.0, "lane": 0},
-	{"t": 7.4, "lane": 1},
-	{"t": 7.8, "lane": 2},
-	{"t": 8.2, "lane": 3},
-]
+const keys = ['d', 'f', 'j', 'k'];
+const colors = ['#33d6ff', '#ff5ab8', '#ffd633', '#5aff73'];
 
-# ====================== INTERNAL ======================
-var game_time := 0.0
-var chart_index := 0
-var score := 0
-var combo := 0
-var max_combo := 0
+// Simple chart (time in seconds, lane 0-3)
+const chart = [
+  {t:1.0, lane:0}, {t:1.4, lane:1}, {t:1.8, lane:2}, {t:2.2, lane:3},
+  {t:2.6, lane:0}, {t:2.9, lane:2}, {t:3.2, lane:1}, {t:3.6, lane:3},
+  {t:4.0, lane:0}, {t:4.3, lane:1}, {t:4.6, lane:2}, {t:5.0, lane:3},
+  {t:5.4, lane:0}, {t:5.7, lane:2}, {t:6.1, lane:1}, {t:6.5, lane:3},
+  {t:7.0, lane:0}, {t:7.4, lane:1}, {t:7.8, lane:2}, {t:8.2, lane:3},
+  {t:8.6, lane:0}, {t:9.0, lane:1}, {t:9.4, lane:2}, {t:9.8, lane:3},
+];
 
-var notes: Array = []          # each note is a Dictionary
-var lane_colors := [
-	Color(0.2, 0.85, 1.0),     # cyan
-	Color(1.0, 0.35, 0.75),    # pink
-	Color(1.0, 0.9, 0.25),     # yellow
-	Color(0.35, 1.0, 0.45)     # green
-]
+let notes = [];
+let chartIndex = 0;
+let score = 0;
+let combo = 0;
+let startTime = null;
+let pressed = [false, false, false, false];
 
-var start_x := 0.0
-var score_label: Label
-var combo_label: Label
-var judgment_label: Label
+// Create lanes
+for (let i = 0; i < LANE_COUNT; i++) {
+  const lane = document.createElement('div');
+  lane.className = 'lane';
+  lane.style.left = (i * LANE_WIDTH) + 'px';
+  lane.style.background = i % 2 === 0 ? '#121218' : '#16161e';
+  canvas.appendChild(lane);
+}
 
-func _ready():
-	# Center the 4 lanes on screen
-	start_x = (get_viewport_rect().size.x - (LANE_COUNT * LANE_WIDTH)) / 2.0
-	
-	# Create simple UI labels
-	score_label = Label.new()
-	score_label.position = Vector2(20, 20)
-	score_label.add_theme_font_size_override("font_size", 28)
-	add_child(score_label)
-	
-	combo_label = Label.new()
-	combo_label.position = Vector2(20, 55)
-	combo_label.add_theme_font_size_override("font_size", 24)
-	add_child(combo_label)
-	
-	judgment_label = Label.new()
-	judgment_label.position = Vector2(get_viewport_rect().size.x / 2 - 60, HIT_Y - 80)
-	judgment_label.add_theme_font_size_override("font_size", 36)
-	judgment_label.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
-	add_child(judgment_label)
-	
-	update_ui()
+function spawnNote(data) {
+  const note = document.createElement('div');
+  note.className = 'note';
+  note.style.background = colors[data.lane];
+  note.style.left = (data.lane * LANE_WIDTH + 10) + 'px';
+  note.style.top = (HIT_Y - SPAWN_AHEAD * NOTE_SPEED) + 'px';
+  canvas.appendChild(note);
 
-func _process(delta):
-	game_time += delta
-	
-	# Spawn notes from chart
-	while chart_index < chart.size() and chart[chart_index].t - SPAWN_AHEAD <= game_time:
-		spawn_note(chart[chart_index])
-		chart_index += 1
-	
-	# Move notes
-	for i in range(notes.size() - 1, -1, -1):
-		var n = notes[i]
-		n.y += NOTE_SPEED * delta
-		n.node.position.y = n.y
-		
-		# Auto miss
-		if n.y > HIT_Y + 70 and n.active:
-			n.active = false
-			miss()
-			n.node.queue_free()
-			notes.remove_at(i)
-	
-	# Input
-	for i in range(LANE_COUNT):
-		if Input.is_key_pressed(OS.find_keycode_from_string(keys[i])) and Input.is_action_just_pressed("ui_accept") == false:
-			# Better way:
-			pass
-	
-	# Proper key detection
-	for i in range(LANE_COUNT):
-		var keycode = OS.find_keycode_from_string(keys[i])
-		if Input.is_physical_key_pressed(keycode) and not get_meta("key_" + str(i), false):
-			set_meta("key_" + str(i), true)
-			try_hit(i)
-		elif not Input.is_physical_key_pressed(keycode):
-			set_meta("key_" + str(i), false)
+  notes.push({
+    el: note,
+    lane: data.lane,
+    time: data.t,
+    y: HIT_Y - SPAWN_AHEAD * NOTE_SPEED,
+    active: true
+  });
+}
 
-func spawn_note(data: Dictionary):
-	var note_node = ColorRect.new()
-	note_node.size = Vector2(LANE_WIDTH - 12, NOTE_HEIGHT)
-	note_node.color = lane_colors[data.lane]
-	note_node.position = Vector2(
-		start_x + data.lane * LANE_WIDTH + 6,
-		HIT_Y - (SPAWN_AHEAD * NOTE_SPEED)
-	)
-	add_child(note_node)
-	
-	notes.append({
-		"node": note_node,
-		"lane": data.lane,
-		"time": data.t,
-		"y": note_node.position.y,
-		"active": true
-	})
+function showJudgment(text, color) {
+  judgmentEl.textContent = text;
+  judgmentEl.style.color = color;
+  judgmentEl.style.opacity = 1;
+  setTimeout(() => {
+    judgmentEl.style.transition = 'opacity 0.4s';
+    judgmentEl.style.opacity = 0;
+  }, 100);
+}
 
-func try_hit(lane: int):
-	var best_note = null
-	var best_diff = 999.0
-	
-	for n in notes:
-		if n.lane == lane and n.active:
-			var diff = abs(game_time - n.time)
-			if diff < best_diff:
-				best_diff = diff
-				best_note = n
-	
-	if best_note == null:
-		return
-	
-	if best_diff <= PERFECT_WINDOW:
-		hit_note(best_note, "Perfect", 300)
-	elif best_diff <= GOOD_WINDOW:
-		hit_note(best_note, "Good", 100)
-	# else: too early/late → do nothing (player can try again)
+function hitNote(n, judgment, points) {
+  n.active = false;
+  score += points;
+  combo++;
+  n.el.style.background = '#ffffff';
+  n.el.style.transition = 'opacity 0.12s';
+  n.el.style.opacity = 0;
+  setTimeout(() => n.el.remove(), 120);
 
-func hit_note(n: Dictionary, judgment: String, points: int):
-	n.active = false
-	score += points
-	combo += 1
-	max_combo = max(max_combo, combo)
-	
-	# Visual feedback
-	n.node.color = Color.WHITE
-	judgment_label.text = judgment
-	judgment_label.modulate = Color.WHITE
-	
-	# Simple flash effect
-	var tween = create_tween()
-	tween.tween_property(n.node, "modulate:a", 0.0, 0.15)
-	tween.tween_callback(n.node.queue_free)
-	
-	# Fade judgment text
-	var t2 = create_tween()
-	t2.tween_property(judgment_label, "modulate:a", 0.0, 0.6)
-	
-	notes.erase(n)
-	update_ui()
+  showJudgment(judgment, judgment === 'Perfect' ? '#7aff9e' : '#ffd56a');
+  updateUI();
+}
 
-func miss():
-	combo = 0
-	judgment_label.text = "Miss"
-	judgment_label.modulate = Color(1, 0.3, 0.3)
-	var t = create_tween()
-	t.tween_property(judgment_label, "modulate:a", 0.0, 0.5)
-	update_ui()
+function miss() {
+  combo = 0;
+  showJudgment('Miss', '#ff5555');
+  updateUI();
+}
 
-func update_ui():
-	score_label.text = "Score: " + str(score)
-	combo_label.text = "Combo: " + str(combo)
+function tryHit(lane) {
+  let best = null;
+  let bestDiff = 999;
 
-func _draw():
-	# Draw the 4 lanes background
-	for i in range(LANE_COUNT):
-		var x = start_x + i * LANE_WIDTH
-		draw_rect(Rect2(x, 40, LANE_WIDTH, HIT_Y - 40), Color(0.12, 0.12, 0.15))
-		draw_rect(Rect2(x, 40, LANE_WIDTH, HIT_Y - 40), Color(0.25, 0.25, 0.3), false, 2.0)
-	
-	# Draw the hit line
-	draw_rect(Rect2(start_x, HIT_Y - 4, LANE_COUNT * LANE_WIDTH, 8), Color(1, 1, 1, 0.85))
+  const now = (performance.now() - startTime) / 1000;
+
+  for (const n of notes) {
+    if (n.lane === lane && n.active) {
+      const diff = Math.abs(now - n.time);
+      if (diff < bestDiff) {
+        bestDiff = diff;
+        best = n;
+      }
+    }
+  }
+
+  if (!best) return;
+
+  if (bestDiff <= PERFECT) {
+    hitNote(best, 'Perfect', 300);
+  } else if (bestDiff <= GOOD) {
+    hitNote(best, 'Good', 100);
+  }
+}
+
+function updateUI() {
+  scoreEl.textContent = 'Score: ' + score;
+  comboEl.textContent = 'Combo: ' + combo;
+}
+
+function gameLoop(timestamp) {
+  if (!startTime) startTime = timestamp;
+  const now = (timestamp - startTime) / 1000;
+
+  // Spawn
+  while (chartIndex < chart.length && chart[chartIndex].t - SPAWN_AHEAD <= now) {
+    spawnNote(chart[chartIndex]);
+    chartIndex++;
+  }
+
+  // Move notes
+  for (let i = notes.length - 1; i >= 0; i--) {
+    const n = notes[i];
+    n.y += NOTE_SPEED * (1/60); // approximate
+    n.el.style.top = n.y + 'px';
+
+    if (n.y > HIT_Y + 70 && n.active) {
+      n.active = false;
+      miss();
+      n.el.remove();
+      notes.splice(i, 1);
+    }
+  }
+
+  requestAnimationFrame(gameLoop);
+}
+
+// Keyboard
+document.addEventListener('keydown', e => {
+  const key = e.key.toLowerCase();
+  const idx = keys.indexOf(key);
+  if (idx !== -1 && !pressed[idx]) {
+    pressed[idx] = true;
+    tryHit(idx);
+  }
+});
+
+document.addEventListener('keyup', e => {
+  const key = e.key.toLowerCase();
+  const idx = keys.indexOf(key);
+  if (idx !== -1) pressed[idx] = false;
+});
+
+// Start
+requestAnimationFrame(gameLoop);
+</script>
+</body>
+</html>
