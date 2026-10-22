@@ -2,13 +2,13 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Rhythm Game - Fixed</title>
+<title>Rhythm Game - Actually Working</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   body {
-    background: #07070c;
-    color: #eee;
-    font-family: 'Segoe UI', system-ui, sans-serif;
+    background: #05050a;
+    color: white;
+    font-family: system-ui, Arial, sans-serif;
     height: 100vh;
     display: flex;
     flex-direction: column;
@@ -24,25 +24,24 @@
     width: 100%;
     justify-content: center;
     border-bottom: 1px solid #222;
-    z-index: 100;
   }
   button {
-    background: #1a1a22;
+    background: #1c1c24;
     color: #ddd;
     border: 1px solid #333;
-    padding: 8px 18px;
+    padding: 9px 18px;
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
   }
-  button:hover { background: #2a2a35; }
-  button.active { background: #2e7d32; border-color: #4caf50; color: white; }
+  button:hover { background: #2a2a33; }
+  button.active { background: #2e7d32; border-color: #4caf50; }
 
-  #container {
+  #wrap {
     flex: 1;
-    width: 100%;
     display: flex;
     justify-content: center;
+    width: 100%;
     overflow: hidden;
   }
 
@@ -50,7 +49,7 @@
     position: relative;
     width: 480px;
     height: 100%;
-    background: #0c0c14;
+    background: #0b0b12;
     border-left: 2px solid #222;
     border-right: 2px solid #222;
     overflow: hidden;
@@ -61,19 +60,18 @@
     top: 0;
     width: 120px;
     height: 100%;
-    border-right: 1px solid #1a1a25;
+    border-right: 1px solid #1a1a22;
   }
-  .lane.flash { background: rgba(255,255,255,0.08); }
 
   .hit-line {
     position: absolute;
-    bottom: 110px;
+    bottom: 120px;
     left: 0;
     width: 100%;
-    height: 6px;
+    height: 8px;
     background: #fff;
-    box-shadow: 0 0 14px #fff, 0 0 28px #88f;
-    z-index: 20;
+    box-shadow: 0 0 20px #fff;
+    z-index: 10;
   }
 
   .note {
@@ -81,60 +79,49 @@
     width: 100px;
     left: 10px;
     border-radius: 8px;
-    box-shadow: 0 0 16px currentColor;
+    box-shadow: 0 0 18px currentColor;
   }
   .note-head {
-    height: 28px;
+    height: 30px;
     border-radius: 8px;
-    width: 100%;
   }
   .note-body {
-    width: 58%;
-    margin-left: 21%;
-    opacity: 0.5;
+    width: 60%;
+    margin-left: 20%;
+    opacity: 0.55;
     border-radius: 0 0 6px 6px;
   }
 
-  #score { position: absolute; top: 18px; left: 18px; font-size: 26px; z-index: 30; text-shadow: 0 0 10px black; }
-  #combo { position: absolute; top: 50px; left: 18px; font-size: 20px; z-index: 30; text-shadow: 0 0 10px black; }
+  #score { position: absolute; top: 20px; left: 20px; font-size: 28px; z-index: 20; }
+  #combo { position: absolute; top: 55px; left: 20px; font-size: 22px; z-index: 20; }
   #judgment {
     position: absolute;
-    top: 38%;
+    top: 40%;
     left: 50%;
     transform: translateX(-50%);
-    font-size: 48px;
-    font-weight: 700;
+    font-size: 52px;
+    font-weight: bold;
     opacity: 0;
-    z-index: 40;
+    z-index: 30;
     pointer-events: none;
-    text-shadow: 0 0 20px currentColor;
+    text-shadow: 0 0 25px currentColor;
   }
   .keys {
     position: absolute;
-    bottom: 35px;
+    bottom: 40px;
     width: 100%;
     display: flex;
     justify-content: space-around;
-    font-size: 18px;
-    opacity: 0.45;
-    z-index: 10;
+    font-size: 20px;
+    opacity: 0.5;
   }
 
-  .particle {
-    position: absolute;
-    width: 6px;
-    height: 6px;
-    border-radius: 50%;
-    pointer-events: none;
-    z-index: 50;
-  }
-
-  /* EDITOR */
+  /* Editor */
   #editor {
     display: none;
     width: 480px;
     height: 100%;
-    background: #0a0a12;
+    background: #0a0a10;
     overflow-y: auto;
     border-left: 2px solid #222;
     border-right: 2px solid #222;
@@ -142,23 +129,23 @@
   #editor-canvas {
     position: relative;
     width: 100%;
-    height: 5000px;
+    height: 6000px;
     background: repeating-linear-gradient(
       to bottom,
-      #0a0a12 0px,
-      #0a0a12 47px,
-      #12121c 47px,
-      #12121c 48px
+      #0a0a10 0px,
+      #0a0a10 59px,
+      #12121a 59px,
+      #12121a 60px
     );
   }
-  .editor-lane {
+  .ed-lane {
     position: absolute;
     top: 0;
     width: 120px;
     height: 100%;
-    border-right: 1px solid #1a1a25;
+    border-right: 1px solid #1a1a22;
   }
-  .editor-note {
+  .ed-note {
     position: absolute;
     width: 100px;
     left: 10px;
@@ -166,33 +153,32 @@
     cursor: pointer;
     box-shadow: 0 0 12px currentColor;
   }
-  .editor-note:hover { filter: brightness(1.25); }
-  .editor-note .head { height: 24px; border-radius: 7px; }
-  .editor-note .body {
+  .ed-note .head { height: 26px; border-radius: 7px; }
+  .ed-note .body {
     width: 55%;
     margin-left: 22.5%;
     opacity: 0.5;
     border-radius: 0 0 5px 5px;
   }
-  .time-label {
+  .time {
     position: absolute;
     left: 6px;
     font-size: 12px;
     color: #555;
-    pointer-events: none;
   }
 </style>
 </head>
 <body>
 
 <div id="toolbar">
-  <button id="btn-play" class="active">▶ Play</button>
-  <button id="btn-edit">✎ Editor</button>
-  <button id="btn-clear">Clear</button>
-  <button id="btn-long">Long Note: OFF</button>
+  <button id="btnPlay" class="active">▶ Play</button>
+  <button id="btnEdit">✎ Editor</button>
+  <button id="btnRestart">Restart</button>
+  <button id="btnClear">Clear Chart</button>
+  <button id="btnLong">Long: OFF</button>
 </div>
 
-<div id="container">
+<div id="wrap">
   <div id="game">
     <div id="score">Score: 0</div>
     <div id="combo">Combo: 0</div>
@@ -207,6 +193,40 @@
 </div>
 
 <script>
+// ===================== SETTINGS =====================
+const LANE_W = 120;
+const SCROLL_SPEED = 320;        // pixels per second (lower = slower)
+const HIT_Y = 520;
+const PERFECT = 0.11;
+const GOOD = 0.18;
+const EDITOR_SCALE = 100;        // pixels per second in editor
+
+const KEYS = ['d', 'f', 'j', 'k'];
+const COLORS = ['#33d6ff', '#ff5ab8', '#ffd633', '#5aff73'];
+
+// Easy starter chart
+let chart = [
+  {t: 1.5, lane: 0, d: 0},
+  {t: 2.3, lane: 1, d: 0},
+  {t: 3.1, lane: 2, d: 0},
+  {t: 3.9, lane: 3, d: 0},
+  {t: 4.7, lane: 0, d: 0},
+  {t: 5.5, lane: 1, d: 0},
+  {t: 6.3, lane: 2, d: 0},
+  {t: 7.1, lane: 3, d: 0},
+];
+
+// ===================== STATE =====================
+let mode = 'play';
+let longMode = false;
+let notes = [];
+let chartIndex = 0;
+let score = 0;
+let combo = 0;
+let startTime = 0;
+let playing = false;
+let pressed = [false, false, false, false];
+
 const game = document.getElementById('game');
 const editor = document.getElementById('editor');
 const editorCanvas = document.getElementById('editor-canvas');
@@ -214,134 +234,72 @@ const scoreEl = document.getElementById('score');
 const comboEl = document.getElementById('combo');
 const judgmentEl = document.getElementById('judgment');
 
-const LANE_W = 120;
-const NOTE_SPEED = 380;          // slower = easier
-const HIT_Y = 530;
-const PERFECT_WINDOW = 0.09;
-const GOOD_WINDOW = 0.16;
-const PX_PER_SEC = 90;           // editor scale
-
-const keys = ['d','f','j','k'];
-const colors = ['#33d6ff','#ff5ab8','#ffd633','#5aff73'];
-
-let mode = 'play';
-let longMode = false;
-let chart = [
-  {t: 1.2, lane: 0, d: 0},
-  {t: 1.8, lane: 1, d: 0},
-  {t: 2.4, lane: 2, d: 0},
-  {t: 3.0, lane: 3, d: 0},
-  {t: 3.6, lane: 0, d: 0},
-  {t: 4.0, lane: 2, d: 0.5},
-  {t: 4.8, lane: 1, d: 0},
-  {t: 5.4, lane: 3, d: 0},
-  {t: 6.0, lane: 0, d: 0},
-  {t: 6.6, lane: 1, d: 0},
-];
-
-let activeNotes = [];
-let chartIndex = 0;
-let score = 0, combo = 0;
-let startTime = null;
-let playing = true;
-let pressed = [false, false, false, false];
-
-// Create lanes
-const laneEls = [];
+// Create play lanes
 for (let i = 0; i < 4; i++) {
-  const l = document.createElement('div');
-  l.className = 'lane';
-  l.style.left = (i * LANE_W) + 'px';
-  l.style.background = i % 2 === 0 ? '#0c0c14' : '#10101a';
-  game.appendChild(l);
-  laneEls.push(l);
+  const lane = document.createElement('div');
+  lane.className = 'lane';
+  lane.style.left = (i * LANE_W) + 'px';
+  lane.style.background = i % 2 === 0 ? '#0c0c14' : '#101018';
+  game.appendChild(lane);
 }
 
-// Editor setup
+// Create editor lanes + time markers
 for (let i = 0; i < 4; i++) {
-  const l = document.createElement('div');
-  l.className = 'editor-lane';
-  l.style.left = (i * LANE_W) + 'px';
-  editorCanvas.appendChild(l);
+  const lane = document.createElement('div');
+  lane.className = 'ed-lane';
+  lane.style.left = (i * LANE_W) + 'px';
+  editorCanvas.appendChild(lane);
 }
 for (let t = 0; t <= 60; t++) {
   const label = document.createElement('div');
-  label.className = 'time-label';
-  label.style.top = (t * PX_PER_SEC) + 'px';
+  label.className = 'time';
+  label.style.top = (t * EDITOR_SCALE) + 'px';
   label.textContent = t + 's';
   editorCanvas.appendChild(label);
 }
 
-// ========== EFFECTS ==========
-function particles(x, y, color, count = 12) {
-  for (let i = 0; i < count; i++) {
-    const p = document.createElement('div');
-    p.className = 'particle';
-    p.style.left = x + 'px';
-    p.style.top = y + 'px';
-    p.style.background = color;
-    p.style.boxShadow = `0 0 8px ${color}`;
-    game.appendChild(p);
-
-    const angle = Math.random() * Math.PI * 2;
-    const speed = 60 + Math.random() * 100;
-    let vx = Math.cos(angle) * speed;
-    let vy = Math.sin(angle) * speed - 40;
-    let life = 1;
-
-    function tick() {
-      life -= 0.03;
-      if (life <= 0) { p.remove(); return; }
-      p.style.left = (parseFloat(p.style.left) + vx * 0.016) + 'px';
-      p.style.top = (parseFloat(p.style.top) + vy * 0.016) + 'px';
-      p.style.opacity = life;
-      requestAnimationFrame(tick);
-    }
-    requestAnimationFrame(tick);
-  }
-}
-
-function flashLane(lane) {
-  laneEls[lane].classList.add('flash');
-  setTimeout(() => laneEls[lane].classList.remove('flash'), 80);
-}
-
+// ===================== HELPERS =====================
 function showJudgment(text, color) {
   judgmentEl.textContent = text;
   judgmentEl.style.color = color;
-  judgmentEl.style.opacity = 1;
-  judgmentEl.style.transform = 'translateX(-50%) scale(1.2)';
+  judgmentEl.style.opacity = '1';
+  judgmentEl.style.transform = 'translateX(-50%) scale(1.3)';
   setTimeout(() => {
-    judgmentEl.style.transition = 'all 0.35s';
-    judgmentEl.style.opacity = 0;
-    judgmentEl.style.transform = 'translateX(-50%) scale(0.85)';
-  }, 70);
+    judgmentEl.style.transition = 'all 0.3s';
+    judgmentEl.style.opacity = '0';
+    judgmentEl.style.transform = 'translateX(-50%) scale(0.8)';
+  }, 50);
 }
 
-// ========== CORE GAME ==========
+function updateUI() {
+  scoreEl.textContent = 'Score: ' + score;
+  comboEl.textContent = 'Combo: ' + combo;
+}
+
+// ===================== PLAY LOGIC =====================
 function spawnNote(data) {
   const el = document.createElement('div');
   el.className = 'note';
-  el.style.color = colors[data.lane];
+  el.style.color = COLORS[data.lane];
   el.style.left = (data.lane * LANE_W + 10) + 'px';
 
   const head = document.createElement('div');
   head.className = 'note-head';
-  head.style.background = colors[data.lane];
+  head.style.background = COLORS[data.lane];
   el.appendChild(head);
 
   if (data.d > 0) {
     const body = document.createElement('div');
     body.className = 'note-body';
-    body.style.height = (data.d * NOTE_SPEED) + 'px';
-    body.style.background = colors[data.lane];
+    body.style.height = (data.d * SCROLL_SPEED) + 'px';
+    body.style.background = COLORS[data.lane];
     el.appendChild(body);
   }
 
   game.appendChild(el);
 
-  activeNotes.push({
-    el,
+  notes.push({
+    el: el,
     lane: data.lane,
     time: data.t,
     duration: data.d || 0,
@@ -349,36 +307,14 @@ function spawnNote(data) {
   });
 }
 
-function hitNote(n, judgment, points) {
-  n.active = false;
-  score += points;
-  combo++;
-  flashLane(n.lane);
-  particles(n.lane * LANE_W + 60, HIT_Y, colors[n.lane], judgment === 'Perfect' ? 16 : 9);
-
-  n.el.style.transition = 'opacity 0.12s, transform 0.12s';
-  n.el.style.opacity = 0;
-  n.el.style.transform = 'scale(1.3)';
-  setTimeout(() => n.el.remove(), 120);
-
-  showJudgment(judgment, judgment === 'Perfect' ? '#7aff9e' : '#ffd56a');
-  updateUI();
-}
-
-function miss() {
-  combo = 0;
-  showJudgment('Miss', '#ff5555');
-  updateUI();
-}
-
 function tryHit(lane) {
-  if (mode !== 'play' || !playing) return;
+  if (!playing || mode !== 'play') return;
 
   const now = (performance.now() - startTime) / 1000;
   let best = null;
   let bestDiff = 999;
 
-  for (const n of activeNotes) {
+  for (const n of notes) {
     if (n.lane === lane && n.active) {
       const diff = Math.abs(now - n.time);
       if (diff < bestDiff) {
@@ -390,53 +326,69 @@ function tryHit(lane) {
 
   if (!best) return;
 
-  if (bestDiff <= PERFECT_WINDOW) {
-    hitNote(best, 'Perfect', 300);
-  } else if (bestDiff <= GOOD_WINDOW) {
-    hitNote(best, 'Good', 100);
+  if (bestDiff <= PERFECT) {
+    hit(best, 'Perfect', 300);
+  } else if (bestDiff <= GOOD) {
+    hit(best, 'Good', 100);
   }
 }
 
-function updateUI() {
-  scoreEl.textContent = 'Score: ' + score;
-  comboEl.textContent = 'Combo: ' + combo;
+function hit(n, judgment, points) {
+  n.active = false;
+  score += points;
+  combo++;
+  showJudgment(judgment, judgment === 'Perfect' ? '#7aff9e' : '#ffd56a');
+
+  n.el.style.transition = 'opacity 0.1s, transform 0.1s';
+  n.el.style.opacity = '0';
+  n.el.style.transform = 'scale(1.4)';
+  setTimeout(() => n.el.remove(), 100);
+
+  updateUI();
 }
 
-function gameLoop(timestamp) {
+function miss(n) {
+  n.active = false;
+  combo = 0;
+  showJudgment('Miss', '#ff5555');
+  n.el.remove();
+  updateUI();
+}
+
+// Main loop - this is the important part
+function loop(timestamp) {
   if (!startTime) startTime = timestamp;
   const now = (timestamp - startTime) / 1000;
 
   if (playing && mode === 'play') {
-    // Spawn notes a bit early
-    while (chartIndex < chart.length && chart[chartIndex].t - 2.0 <= now) {
+    // Spawn notes early enough
+    while (chartIndex < chart.length && chart[chartIndex].t - 2.2 <= now) {
       spawnNote(chart[chartIndex]);
       chartIndex++;
     }
 
-    // Position notes based on real time (this is the important fix)
-    for (let i = activeNotes.length - 1; i >= 0; i--) {
-      const n = activeNotes[i];
-      const timeUntilHit = n.time - now;
-      const y = HIT_Y - (timeUntilHit * NOTE_SPEED);
+    // Move notes using pure time math (this makes them land correctly)
+    for (let i = notes.length - 1; i >= 0; i--) {
+      const n = notes[i];
+      const timeLeft = n.time - now;
+      const y = HIT_Y - (timeLeft * SCROLL_SPEED);
 
       n.el.style.top = y + 'px';
 
-      // Miss if too late
-      if (now > n.time + GOOD_WINDOW + 0.05 && n.active) {
-        n.active = false;
-        miss();
-        n.el.remove();
-        activeNotes.splice(i, 1);
+      // Too late → miss
+      if (now > n.time + GOOD + 0.05 && n.active) {
+        miss(n);
+        notes.splice(i, 1);
       }
     }
   }
 
-  requestAnimationFrame(gameLoop);
+  requestAnimationFrame(loop);
 }
 
 // Keyboard
 document.addEventListener('keydown', e => {
-  const idx = keys.indexOf(e.key.toLowerCase());
+  const idx = KEYS.indexOf(e.key.toLowerCase());
   if (idx === -1) return;
   if (!pressed[idx]) {
     pressed[idx] = true;
@@ -444,37 +396,37 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('keyup', e => {
-  const idx = keys.indexOf(e.key.toLowerCase());
+  const idx = KEYS.indexOf(e.key.toLowerCase());
   if (idx !== -1) pressed[idx] = false;
 });
 
-// ========== EDITOR ==========
+// ===================== EDITOR =====================
 function renderEditor() {
-  editorCanvas.querySelectorAll('.editor-note').forEach(n => n.remove());
+  editorCanvas.querySelectorAll('.ed-note').forEach(n => n.remove());
 
-  chart.forEach((data, index) => {
+  chart.forEach((data, i) => {
     const el = document.createElement('div');
-    el.className = 'editor-note';
-    el.style.color = colors[data.lane];
+    el.className = 'ed-note';
+    el.style.color = COLORS[data.lane];
     el.style.left = (data.lane * LANE_W + 10) + 'px';
-    el.style.top = (data.t * PX_PER_SEC) + 'px';
+    el.style.top = (data.t * EDITOR_SCALE) + 'px';
 
     const head = document.createElement('div');
     head.className = 'head';
-    head.style.background = colors[data.lane];
+    head.style.background = COLORS[data.lane];
     el.appendChild(head);
 
     if (data.d > 0) {
       const body = document.createElement('div');
       body.className = 'body';
-      body.style.height = (data.d * PX_PER_SEC) + 'px';
-      body.style.background = colors[data.lane];
+      body.style.height = (data.d * EDITOR_SCALE) + 'px';
+      body.style.background = COLORS[data.lane];
       el.appendChild(body);
     }
 
     el.oncontextmenu = e => {
       e.preventDefault();
-      chart.splice(index, 1);
+      chart.splice(i, 1);
       renderEditor();
     };
 
@@ -492,13 +444,13 @@ editorCanvas.addEventListener('mousedown', e => {
   const lane = Math.floor(x / LANE_W);
   if (lane < 0 || lane > 3) return;
 
-  const t = y / PX_PER_SEC;
+  const t = y / EDITOR_SCALE;
 
   if (e.button === 0) {
     if (longMode || e.shiftKey) {
       dragStart = { t, lane };
     } else {
-      chart.push({ t: Math.max(0.3, t), lane, d: 0 });
+      chart.push({ t: Math.max(0.5, t), lane, d: 0 });
       chart.sort((a, b) => a.t - b.t);
       renderEditor();
     }
@@ -509,8 +461,8 @@ editorCanvas.addEventListener('mouseup', e => {
   if (!dragStart) return;
   const rect = editorCanvas.getBoundingClientRect();
   const y = e.clientY - rect.top + editor.scrollTop;
-  const endT = y / PX_PER_SEC;
-  const duration = Math.max(0.2, endT - dragStart.t);
+  const endT = y / EDITOR_SCALE;
+  const duration = Math.max(0.25, endT - dragStart.t);
 
   chart.push({ t: dragStart.t, lane: dragStart.lane, d: duration });
   chart.sort((a, b) => a.t - b.t);
@@ -518,47 +470,53 @@ editorCanvas.addEventListener('mouseup', e => {
   renderEditor();
 });
 
-// ========== BUTTONS ==========
-document.getElementById('btn-play').onclick = () => {
+// ===================== BUTTONS =====================
+function startPlay() {
   mode = 'play';
-  document.getElementById('btn-play').classList.add('active');
-  document.getElementById('btn-edit').classList.remove('active');
+  document.getElementById('btnPlay').classList.add('active');
+  document.getElementById('btnEdit').classList.remove('active');
   game.style.display = 'block';
   editor.style.display = 'none';
 
-  activeNotes.forEach(n => n.el.remove());
-  activeNotes = [];
+  // Full reset
+  notes.forEach(n => n.el.remove());
+  notes = [];
   chartIndex = 0;
   score = 0;
   combo = 0;
-  startTime = null;
+  startTime = 0;
   playing = true;
   updateUI();
-};
+}
 
-document.getElementById('btn-edit').onclick = () => {
+document.getElementById('btnPlay').onclick = startPlay;
+
+document.getElementById('btnEdit').onclick = () => {
   mode = 'edit';
   playing = false;
-  document.getElementById('btn-edit').classList.add('active');
-  document.getElementById('btn-play').classList.remove('active');
+  document.getElementById('btnEdit').classList.add('active');
+  document.getElementById('btnPlay').classList.remove('active');
   game.style.display = 'none';
   editor.style.display = 'block';
   renderEditor();
 };
 
-document.getElementById('btn-clear').onclick = () => {
+document.getElementById('btnRestart').onclick = startPlay;
+
+document.getElementById('btnClear').onclick = () => {
   chart = [];
   renderEditor();
 };
 
-document.getElementById('btn-long').onclick = function () {
+document.getElementById('btnLong').onclick = function () {
   longMode = !longMode;
-  this.textContent = 'Long Note: ' + (longMode ? 'ON' : 'OFF');
+  this.textContent = 'Long: ' + (longMode ? 'ON' : 'OFF');
   this.classList.toggle('active', longMode);
 };
 
-// Start
-requestAnimationFrame(gameLoop);
+// Start the game
+startPlay();
+requestAnimationFrame(loop);
 </script>
 </body>
 </html>
