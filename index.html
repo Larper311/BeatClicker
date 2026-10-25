@@ -11,15 +11,27 @@ button,select,input{font:600 13px Arial}
 .b{background:#123;color:#fff;border:2px solid #6cf;border-radius:6px;padding:7px 11px;cursor:pointer}
 .b:hover,.b.on{background:#6cf;color:#012}
 .big{font-size:22px;padding:13px 30px;min-width:300px}
-#bar{position:fixed;left:0;right:0;bottom:0;display:none;gap:5px;flex-wrap:wrap;align-items:center;padding:6px;background:rgba(0,10,25,.94);border-top:2px solid #6cf;color:#fff;z-index:3}
+/* ===== FIXED BOTTOM PANEL ===== */
+#bottom{
+  position:fixed;left:0;right:0;bottom:0;z-index:3;
+  display:none;flex-direction:column;
+  background:rgba(0,10,25,.96);border-top:2px solid #6cf;
+}
+#tlbar{
+  height:46px;padding:4px 8px;color:#fff;font:12px Arial;
+  border-bottom:1px solid #3a6a9a;flex-shrink:0;
+}
+#tltrack{position:relative;height:26px;background:#0a1525;border:1px solid #3a6a9a;border-radius:4px;margin-top:3px;cursor:pointer}
+.tlkey{position:absolute;top:1px;width:10px;height:24px;border-radius:2px;cursor:pointer;transform:translateX(-50%)}
+.tlkey.sel{outline:2px solid #ff0}
+#bar{
+  display:flex;gap:5px;flex-wrap:wrap;align-items:center;
+  padding:6px;color:#fff;max-height:110px;overflow-y:auto;
+}
 #bar i{width:2px;height:26px;background:#6cf;margin:0 3px}
 .row{display:flex;gap:6px;align-items:center;background:#0a1a2a;border:1px solid #6cf;padding:6px 10px;border-radius:6px;min-width:520px;color:#fff}
 .row span{flex:1}
 #toast{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#6cf;color:#012;padding:8px 18px;border-radius:6px;font-weight:700;display:none;z-index:9}
-#tlbar{position:fixed;left:0;right:0;bottom:52px;height:48px;background:rgba(0,8,20,.95);border-top:2px solid #6cf;display:none;z-index:4;padding:4px 8px;color:#fff;font:12px Arial}
-#tltrack{position:relative;height:28px;background:#0a1525;border:1px solid #3a6a9a;border-radius:4px;margin-top:4px;cursor:pointer}
-.tlkey{position:absolute;top:2px;width:10px;height:24px;border-radius:2px;cursor:pointer;transform:translateX(-50%)}
-.tlkey.sel{outline:2px solid #ff0}
 </style></head><body>
 <canvas id="c" width="1280" height="720"></canvas>
 <div id="menu" class="ov"><h1>GEOMETRICAL DASH</h1>
@@ -30,19 +42,24 @@ button,select,input{font:600 13px Arial}
 <button class="b big" id="mFx">Shading FX</button>
 <div style="font-size:14px;opacity:.85">Space / Click / Up = jump (hold) &nbsp; Esc = back &nbsp; M = mute</div></div>
 <div id="lv" class="ov"></div>
-<div id="bar"></div>
-<div id="tlbar">
-  <div style="display:flex;gap:8px;align-items:center">
-    <b>Timeline</b>
-    <button class="b" id="tlAddC">+ Color</button>
-    <button class="b" id="tlAddF">+ Flash</button>
-    <button class="b" id="tlDel">Delete key</button>
-    <span id="tlInfo">Click track to add / select keyframe</span>
-    <input id="tlHue" type="range" min="0" max="359" value="200" style="width:120px">
-    <select id="tlType" class="b"><option value="color">Color</option><option value="flash">Flash</option></select>
+
+<!-- FIXED BOTTOM PANEL (timeline + toolbar) -->
+<div id="bottom">
+  <div id="tlbar">
+    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+      <b>Timeline</b>
+      <button class="b" id="tlAddC">+ Color</button>
+      <button class="b" id="tlAddF">+ Flash</button>
+      <button class="b" id="tlDel">Delete key</button>
+      <span id="tlInfo" style="opacity:.8">Click track to place keyframe</span>
+      <input id="tlHue" type="range" min="0" max="359" value="200" style="width:110px">
+      <select id="tlType" class="b"><option value="color">Color</option><option value="flash">Flash</option></select>
+    </div>
+    <div id="tltrack"></div>
   </div>
-  <div id="tltrack"></div>
+  <div id="bar"></div>
 </div>
+
 <div id="toast"></div>
 <input type="file" id="imp" accept=".json" style="display:none">
 <script>
@@ -117,8 +134,7 @@ function die(){
 const pct=()=>Math.min(100,Math.floor(P.x/(END*B)*100));
 function show(){
   $('menu').style.display=state==='menu'&&!lvOpen?'flex':'none';
-  $('bar').style.display=state==='edit'?'flex':'none';
-  $('tlbar').style.display=state==='edit'?'block':'none';
+  $('bottom').style.display=state==='edit'?'flex':'none';   // <-- fixed
   const ip=$('insp');if(ip)ip.style.display=state==='edit'&&!lvOpen?'flex':'none';
   $('lv').style.display=lvOpen?'flex':'none';
 }
@@ -177,7 +193,6 @@ function step(dt){
 
   P.y+=P.vy*dt;
   let gr=false;
-  const floorY=P.gr?0:CEIL-hitH;
   if(P.gr){
     if(P.y<=0){P.y=0;if(P.vy<0)P.vy=0;gr=true}
     if(P.mode==='ship'&&P.y+hitH>CEIL){P.y=CEIL-hitH;if(P.vy>0)P.vy=0}
@@ -194,9 +209,8 @@ function step(dt){
 
     if(o.t==='b'||o.t==='sl'){
       if(ov(P.x+(B-hitW)/2,P.y,hitW,hitH,ux,uy,o.w,o.h)){
-        if(o.t==='sl'){ // simple slope boost
-          P.vy=Math.max(P.vy,600*gDir);gr=false;
-        }else if(P.gr&&oy>=uy+o.h-16&&P.vy<=0){P.y=uy+o.h;P.vy=0;gr=true}
+        if(o.t==='sl'){P.vy=Math.max(P.vy,600*gDir);gr=false}
+        else if(P.gr&&oy>=uy+o.h-16&&P.vy<=0){P.y=uy+o.h;P.vy=0;gr=true}
         else if(!P.gr&&oy+hitH<=uy+16&&P.vy>=0){P.y=uy-hitH;P.vy=0;gr=true}
         else if(P.mode==='ship'&&P.gr&&oy+hitH<=uy+14&&P.vy>0){P.y=uy-hitH;P.vy=0}
         else{die();return}
@@ -209,10 +223,10 @@ function step(dt){
       if(dx*dx+dy*dy<17*17){die();return}
     }else if(o.t==='p'){
       if(ov(P.x,P.y,B,hitH,ux,uy,B,12)&&!o.used){o.used=true;P.vy=(P.mode==='ship'?700:PV[(o.m||2)-1])*gDir;gr=false}
-    }else if(o.t==='o'||o.t==='do'){ // normal orb or dash orb
+    }else if(o.t==='o'||o.t==='do'){
       if(pressed&&!o.used&&ov(P.x+4,P.y+4,B-8,hitH-8,ux-4,uy-4,B+8,B+8)){
         o.used=true;pressed=false;gr=false;
-        if(o.t==='do'){P.vy=0;P.dashT=.35;P.x+= (o.m||1)*180*P.dir}
+        if(o.t==='do'){P.vy=0;P.dashT=.35;P.x+=(o.m||1)*180*P.dir}
         else P.vy=OJ[(o.m||2)-1]*gDir;
       }
     }else if(o.t==='n'){
@@ -228,8 +242,7 @@ function step(dt){
       }
     }
   }
-  if(gr)P.coy=.07;P.gr=gr||P.gr; // keep gravity state
-  // rotation
+  if(gr)P.coy=.07;
   if(P.mode==='cube'||P.mode==='ball'){
     if(!gr)P.rot+=8.6*dt*(P.gr?1:-1);
     else{const tg=Math.round(P.rot/(Math.PI/2))*Math.PI/2;P.rot+=(tg-P.rot)*Math.min(1,dt*30)}
@@ -241,7 +254,6 @@ function step(dt){
 }
 // ---------- RENDER ----------
 function hueAt(xp){
-  // Timeline first
   const prog=xp/(END*B);
   let col=220;
   for(const k of TLKEYS){
@@ -250,7 +262,6 @@ function hueAt(xp){
       if(k.type==='flash'&&state==='play')flash=Math.max(flash,0.45);
     }
   }
-  // fallback old color triggers
   const a=state==='edit'?ed.data.map(o=>({x:o.x*B,t:o.t,m:o.m})):L;
   let r=null;
   for(const o of a)if(o.t==='c'&&o.x<=xp&&(!r||o.x>=r.x))r=o;
@@ -259,15 +270,9 @@ function hueAt(xp){
 const SPC={0.5:'#8af',0.8:'#fa0',1:'#4cf',1.5:'#4f6',2:'#f84',3:'#f44',4:'#f0f',5:'#fff'};
 const PC=['#f6c','#ff0','#f44'];
 const SK=[
-  ['#20202a','#000','#fff'],           // classic
-  ['#6f96c8','#142238','#d8ecff'],     // glossy
-  ['#021820','#000','h'],              // neon
-  ['#b4bcc6','#3a4047','#fff'],        // metal
-  ['rgba(170,230,255,.4)','rgba(60,130,210,.3)','#c8f0ff'], // glass
-  ['#ff9a2a','#6a0d00','#ffd890'],     // lava
-  ['#a8e0ff','#3a8ab0','#e0f8ff'],     // ice
-  ['#c45a2a','#4a1800','#ffb070'],     // magma
-  ['#8a7a6a','#3a3028','#d0c0a8']      // rock
+  ['#20202a','#000','#fff'],['#6f96c8','#142238','#d8ecff'],['#021820','#000','h'],
+  ['#b4bcc6','#3a4047','#fff'],['rgba(170,230,255,.4)','rgba(60,130,210,.3)','#c8f0ff'],
+  ['#ff9a2a','#6a0d00','#ffd890'],['#a8e0ff','#3a8ab0','#e0f8ff'],['#c45a2a','#4a1800','#ffb070'],['#8a7a6a','#3a3028','#d0c0a8']
 ];
 const skin=o=>{const q=SK[o.k|0]||SK[0];return{a:q[0],b:q[1],e:q[2]==='h'?`hsl(${(bgh+180)%360},100%,65%)`:q[2]}};
 function tile(tx,ty,w,h,o,t){
@@ -284,7 +289,7 @@ function drawObj(o,sx,by,t,edit){
   const k=o.k|0,s=skin(o);
   if(o.t==='b'||o.t==='k'||o.t==='sl'){
     x.save();if(o.t==='k')x.globalAlpha*=.45;
-    if(o.t==='sl'){ // simple triangle ramp
+    if(o.t==='sl'){
       x.beginPath();x.moveTo(sx,by);x.lineTo(sx+o.w,by);x.lineTo(sx+o.w,by-o.h);x.closePath();
       const g=x.createLinearGradient(sx,by,sx,by-o.h);g.addColorStop(0,s.a);g.addColorStop(1,s.b);
       x.fillStyle=g;x.fill();x.strokeStyle=s.e;x.lineWidth=2;x.stroke();
@@ -305,7 +310,7 @@ function drawObj(o,sx,by,t,edit){
     x.closePath();const g=x.createRadialGradient(0,0,2,0,0,21);g.addColorStop(0,s.a);g.addColorStop(1,s.b);
     x.fillStyle=g;x.fill();x.strokeStyle=s.e;x.lineWidth=2;x.stroke();x.beginPath();x.arc(0,0,5,0,6.28);x.stroke();x.restore();
   }else if(o.t==='p'){
-    const c=PC[(o.m||2)-1];x.shadowColor=c;x.shadowBlur=14;x.fillStyle=c;x.beginPath();x.ellipse(sx+20,by-1,17,8,0,Math.PI,0);x.fill();x.shadowBlur=0;
+    const c=PC[(o.m||2)-1];x.shadowColor=c;x.shadowBlur==14;x.fillStyle=c;x.beginPath();x.ellipse(sx+20,by-1,17,8,0,Math.PI,0);x.fill();x.shadowBlur=0;
   }else if(o.t==='o'||o.t==='do'){
     const c=o.t==='do'?'#0ff':PC[(o.m||2)-1];
     x.shadowColor=c;x.shadowBlur=18;x.fillStyle=c;x.beginPath();x.arc(sx+20,by-20,11,0,6.28);x.fill();
@@ -382,12 +387,11 @@ function draw(dt){
   x.fillStyle=`hsl(${h},65%,10%)`;x.fillRect(-5000,G,20000,3000);
   x.fillStyle=`hsl(${h},80%,55%)`;x.fillRect(-5000,G,20000,4);
   if(!E){x.strokeStyle=`hsla(${h},80%,60%,.25)`;x.lineWidth=2;x.beginPath();for(let i=-(cx%B);i<W;i+=B){x.moveTo(i,G);x.lineTo(i-40,H)}x.stroke()}
-  // ceiling
   if(E||P.mode==='ship'||!P.gr){
     if(!E){x.fillStyle=`hsl(${h},65%,10%)`;x.fillRect(-20,-3000,W+40,3000+G-CEIL);x.fillStyle=`hsl(${h},80%,55%)`;x.fillRect(-20,G-CEIL-4,W+40,4)}
     else{x.strokeStyle='rgba(255,100,200,.6)';x.setLineDash([10,8]);x.lineWidth=2;x.beginPath();x.moveTo(-5000,G-CEIL);x.lineTo(15000,G-CEIL);x.stroke();x.setLineDash([])}
   }
-  if(E){ // grid
+  if(E){
     x.strokeStyle='rgba(255,255,255,.12)';x.lineWidth=1;x.beginPath();
     const gs=ed.snap<1?B*ed.snap:B,x0=Math.floor(cx/gs)*gs;
     for(let i=x0;i<cx+VW+B;i+=gs){x.moveTo(i-cx,G-34*B);x.lineTo(i-cx,G)}
@@ -413,7 +417,7 @@ function draw(dt){
   }
   for(const p of parts){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=1400*dt;x.globalAlpha=Math.max(0,p.life/.7);x.fillStyle=p.c;x.fillRect(p.x-cx-p.sz/2,G-p.y-p.sz/2,p.sz,p.sz)}
   x.globalAlpha=1;parts=parts.filter(p=>p.life>0);
-  if(state==='play'||state==='win'||(state==='menu'&&false))drawPlayer(PX,G-P.y-B*P.size);
+  if(state==='play'||state==='win')drawPlayer(PX,G-P.y-B*P.size);
   x.restore();
   if(FX&&state!=='edit'){const vg=x.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,H*.95);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.4)');x.fillStyle=vg;x.fillRect(0,0,W,H)}
   if(flash>0){x.fillStyle=`rgba(255,255,255,${flash})`;x.fillRect(0,0,W,H)}
@@ -424,7 +428,6 @@ function draw(dt){
     x.fillStyle='#fff';x.font='bold 22px Arial';x.textAlign='left';x.fillText(pct()+'%',950,35);
     if(ed.testing){x.font='16px Arial';x.fillText('TESTING - Esc to return to editor',20,30)}
     if(COINS){x.fillStyle='#fc2';x.beginPath();x.arc(360,62,9,0,6.28);x.fill();x.fillStyle='#fff';x.font='bold 20px Arial';x.fillText(P.coins+' / '+COINS,376,69)}
-    // mode / speed HUD
     x.fillStyle='#9cf';x.font='14px Arial';x.fillText(P.mode.toUpperCase()+(P.size<1?' MINI':'')+'  '+P.sp.toFixed(1)+'x'+(P.gr?'':' ⇑'),20,H-20);
   }
   if(E){
@@ -460,16 +463,16 @@ function cube(){x.fillStyle='#5ef';x.fillRect(-20,-20,40,40);x.fillStyle='#fd2';
 // ---------- EDITOR ----------
 const TL=[
   {id:'sel',n:'Select'},{id:'era',n:'Erase'},
-  {id:'b',n:'Block',t:'b'},{id:'hb',n:'Half block',t:'b',hh:.5},
+  {id:'b',n:'Block',t:'b'},{id:'hb',n:'Half',t:'b',hh:.5},
   {id:'sl',n:'Slope',t:'sl'},
-  {id:'s',n:'Spike',t:'s'},{id:'v',n:'Mini spike',t:'v'},{id:'w',n:'Saw',t:'w'},
-  {id:'p',n:'Pad',t:'p'},{id:'o',n:'Orb',t:'o'},{id:'do',n:'Dash orb',t:'do'},
-  {id:'gs',n:'Ship portal',t:'g',m:'ship'},{id:'gc',n:'Cube portal',t:'g',m:'cube'},
-  {id:'gb',n:'Ball portal',t:'g',m:'ball'},{id:'gu',n:'UFO portal',t:'g',m:'ufo'},{id:'gw',n:'Wave portal',t:'g',m:'wave'},
-  {id:'gg',n:'Gravity portal',t:'g',m:'grav'},
-  {id:'gm',n:'Mirror portal',t:'g',m:'mirror'},{id:'gr',n:'Reverse portal',t:'g',m:'rev'},
-  {id:'d',n:'Speed portal',t:'d'},{id:'sz',n:'Size portal',t:'sz'},{id:'tp',n:'Teleport',t:'tp'},
-  {id:'c',n:'Color trigger',t:'c'},{id:'l',n:'Light',t:'l'},{id:'k',n:'Deco block',t:'k'},{id:'n',n:'Coin',t:'n'}
+  {id:'s',n:'Spike',t:'s'},{id:'v',n:'MiniSpike',t:'v'},{id:'w',n:'Saw',t:'w'},
+  {id:'p',n:'Pad',t:'p'},{id:'o',n:'Orb',t:'o'},{id:'do',n:'Dash',t:'do'},
+  {id:'gs',n:'Ship',t:'g',m:'ship'},{id:'gc',n:'Cube',t:'g',m:'cube'},
+  {id:'gb',n:'Ball',t:'g',m:'ball'},{id:'gu',n:'UFO',t:'g',m:'ufo'},{id:'gw',n:'Wave',t:'g',m:'wave'},
+  {id:'gg',n:'Gravity',t:'g',m:'grav'},
+  {id:'gm',n:'Mirror',t:'g',m:'mirror'},{id:'gr',n:'Reverse',t:'g',m:'rev'},
+  {id:'d',n:'Speed',t:'d'},{id:'sz',n:'Size',t:'sz'},{id:'tp',n:'Teleport',t:'tp'},
+  {id:'c',n:'Color',t:'c'},{id:'l',n:'Light',t:'l'},{id:'k',n:'Deco',t:'k'},{id:'n',n:'Coin',t:'n'}
 ];
 const ed={data:[],sel:new Set(),tool:'b',rot:0,snap:1,cx:-200,cy:-70,z:1,und:[],red:[],clip:[],drag:null,name:'My Level',spd:1,size:1,tpDist:8,hue:200,mx:0,my:0,wx:0,wy:0,gx:0,gy:0,testing:false,prev:false,hbx:false,skin:0,lvl:2,lastSel:null,lastSnap:0,tlSel:null};
 const sc=()=>{const r=cv.getBoundingClientRect();return Math.min(r.width/W,r.height/H)};
@@ -562,10 +565,10 @@ cv.addEventListener('wheel',e=>{if(state!=='edit')return;e.preventDefault();
   <select id="szsel" class="b"><option value="1">Normal</option><option value="0.6">Mini</option></select>
   <input id="tpd" type="number" value="8" min="2" max="40" style="width:50px" title="Teleport distance">
   <input id="hue" type="range" min="0" max="359" value="200" title="Color / Light hue">
-  <button class="b" id="rotb">Rotate (R)</button><button class="b" id="snapb">Snap 1</button><i></i>
+  <button class="b" id="rotb">Rotate</button><button class="b" id="snapb">Snap 1</button><i></i>
   <button class="b" id="undob">Undo</button><button class="b" id="redob">Redo</button><button class="b" id="delb">Delete</button><i></i>
-  <input id="nm" value="My Level" style="width:130px;padding:6px"><button class="b" id="saveb">Save</button><button class="b" id="loadb">Load</button><button class="b" id="expb">Export</button><i></i>
-  <button class="b" id="testb">Test (P)</button><button class="b" id="testh">Test from cursor</button><button class="b" id="menub">Menu</button>`;
+  <input id="nm" value="My Level" style="width:120px;padding:6px"><button class="b" id="saveb">Save</button><button class="b" id="loadb">Load</button><button class="b" id="expb">Export</button><i></i>
+  <button class="b" id="testb">Test (P)</button><button class="b" id="testh">Test here</button><button class="b" id="menub">Menu</button>`;
   bar.onclick=e=>{const b=e.target.closest('.tb');if(b)setTool(b.dataset.id)};
   $('spd').onchange=e=>{ed.spd=+e.target.value;if(ed.sel.size){snapshot();ed.sel.forEach(o=>{if(o.t==='d')o.m=ed.spd});autosave()}};
   $('szsel').onchange=e=>{ed.size=+e.target.value;if(ed.sel.size){snapshot();ed.sel.forEach(o=>{if(o.t==='sz')o.m=ed.size});autosave()}};
@@ -582,18 +585,18 @@ cv.addEventListener('wheel',e=>{if(state!=='edit')return;e.preventDefault();
 const MVT=['b','s','v','w','p','o','n','k','sl','do'];
 const insp=document.createElement('div');insp.id='insp';
 insp.style.cssText='position:fixed;right:8px;top:58px;width:215px;background:rgba(0,10,25,.92);border:2px solid #6cf;border-radius:8px;padding:8px;color:#fff;font:12px Arial;display:none;z-index:3;flex-direction:column;gap:4px';
-insp.innerHTML=`<b>Inspector (applies to selection)</b>
+insp.innerHTML=`<b>Inspector</b>
 Skin <select id="skn">
 <option value="0">Classic</option><option value="1">Glossy</option><option value="2">Neon</option>
 <option value="3">Metal</option><option value="4">Glass</option><option value="5">Lava</option>
 <option value="6">Ice</option><option value="7">Magma</option><option value="8">Rock</option>
 </select>
-Pad / Orb power <select id="lvl"><option value="1">Low</option><option value="2" selected>Normal</option><option value="3">High</option></select>
-Motion <select id="mva"><option value="0">None</option><option value="1">Up / Down</option><option value="2">Left / Right</option><option value="3">Circle</option></select>
-Distance <span id="mvrv">2</span><input id="mvr" type="range" min=".5" max="8" step=".5" value="2">
+Pad/Orb <select id="lvl"><option value="1">Low</option><option value="2" selected>Normal</option><option value="3">High</option></select>
+Motion <select id="mva"><option value="0">None</option><option value="1">Up/Down</option><option value="2">Left/Right</option><option value="3">Circle</option></select>
+Dist <span id="mvrv">2</span><input id="mvr" type="range" min=".5" max="8" step=".5" value="2">
 Speed <span id="mvsv">2</span><input id="mvs" type="range" min=".5" max="6" step=".25" value="2">
-Phase / wave step <span id="mvpv">0</span><input id="mvp" type="range" min="0" max="6.28" step=".1" value="0">
-<button class="b" id="mvw">Phase wave (stagger)</button><button class="b" id="prvb">Preview motion (N)</button><button class="b" id="hbxb">Hitboxes (H)</button><button class="b" id="fxb">Shading FX (F)</button>`;
+Phase <span id="mvpv">0</span><input id="mvp" type="range" min="0" max="6.28" step=".1" value="0">
+<button class="b" id="mvw">Phase wave</button><button class="b" id="prvb">Preview (N)</button><button class="b" id="hbxb">Hitboxes (H)</button><button class="b" id="fxb">FX (F)</button>`;
 document.body.appendChild(insp);
 const snapSoft=()=>{if(Date.now()-ed.lastSnap>700)snapshot();ed.lastSnap=Date.now()};
 const eachSel=f=>{if(!ed.sel.size)return;snapSoft();ed.sel.forEach(f);autosave()};
@@ -631,7 +634,7 @@ $('tltrack').onclick=e=>{
   const type=$('tlType').value;
   TLKEYS.push({p,type,m:+$('tlHue').value});
   TLKEYS.sort((a,b)=>a.p-b.p);
-  ed.tlSel=TLKEYS.findIndex(k=>k.p===p);
+  ed.tlSel=TLKEYS.findIndex(k=>Math.abs(k.p-p)<0.001);
   autosave();drawTL();
 };
 $('tlAddC').onclick=()=>{$('tlType').value='color';$('tltrack').click()};
