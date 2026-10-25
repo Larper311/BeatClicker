@@ -1,522 +1,244 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<title>Rhythm Game - Actually Working</title>
-<style>
-  * { margin: 0; padding: 0; box-sizing: border-box; }
-  body {
-    background: #05050a;
-    color: white;
-    font-family: system-ui, Arial, sans-serif;
-    height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    overflow: hidden;
-  }
-
-  #toolbar {
-    display: flex;
-    gap: 10px;
-    padding: 12px;
-    background: #111;
-    width: 100%;
-    justify-content: center;
-    border-bottom: 1px solid #222;
-  }
-  button {
-    background: #1c1c24;
-    color: #ddd;
-    border: 1px solid #333;
-    padding: 9px 18px;
-    border-radius: 6px;
-    cursor: pointer;
-    font-size: 14px;
-  }
-  button:hover { background: #2a2a33; }
-  button.active { background: #2e7d32; border-color: #4caf50; }
-
-  #wrap {
-    flex: 1;
-    display: flex;
-    justify-content: center;
-    width: 100%;
-    overflow: hidden;
-  }
-
-  #game {
-    position: relative;
-    width: 480px;
-    height: 100%;
-    background: #0b0b12;
-    border-left: 2px solid #222;
-    border-right: 2px solid #222;
-    overflow: hidden;
-  }
-
-  .lane {
-    position: absolute;
-    top: 0;
-    width: 120px;
-    height: 100%;
-    border-right: 1px solid #1a1a22;
-  }
-
-  .hit-line {
-    position: absolute;
-    bottom: 120px;
-    left: 0;
-    width: 100%;
-    height: 8px;
-    background: #fff;
-    box-shadow: 0 0 20px #fff;
-    z-index: 10;
-  }
-
-  .note {
-    position: absolute;
-    width: 100px;
-    left: 10px;
-    border-radius: 8px;
-    box-shadow: 0 0 18px currentColor;
-  }
-  .note-head {
-    height: 30px;
-    border-radius: 8px;
-  }
-  .note-body {
-    width: 60%;
-    margin-left: 20%;
-    opacity: 0.55;
-    border-radius: 0 0 6px 6px;
-  }
-
-  #score { position: absolute; top: 20px; left: 20px; font-size: 28px; z-index: 20; }
-  #combo { position: absolute; top: 55px; left: 20px; font-size: 22px; z-index: 20; }
-  #judgment {
-    position: absolute;
-    top: 40%;
-    left: 50%;
-    transform: translateX(-50%);
-    font-size: 52px;
-    font-weight: bold;
-    opacity: 0;
-    z-index: 30;
-    pointer-events: none;
-    text-shadow: 0 0 25px currentColor;
-  }
-  .keys {
-    position: absolute;
-    bottom: 40px;
-    width: 100%;
-    display: flex;
-    justify-content: space-around;
-    font-size: 20px;
-    opacity: 0.5;
-  }
-
-  /* Editor */
-  #editor {
-    display: none;
-    width: 480px;
-    height: 100%;
-    background: #0a0a10;
-    overflow-y: auto;
-    border-left: 2px solid #222;
-    border-right: 2px solid #222;
-  }
-  #editor-canvas {
-    position: relative;
-    width: 100%;
-    height: 6000px;
-    background: repeating-linear-gradient(
-      to bottom,
-      #0a0a10 0px,
-      #0a0a10 59px,
-      #12121a 59px,
-      #12121a 60px
-    );
-  }
-  .ed-lane {
-    position: absolute;
-    top: 0;
-    width: 120px;
-    height: 100%;
-    border-right: 1px solid #1a1a22;
-  }
-  .ed-note {
-    position: absolute;
-    width: 100px;
-    left: 10px;
-    border-radius: 7px;
-    cursor: pointer;
-    box-shadow: 0 0 12px currentColor;
-  }
-  .ed-note .head { height: 26px; border-radius: 7px; }
-  .ed-note .body {
-    width: 55%;
-    margin-left: 22.5%;
-    opacity: 0.5;
-    border-radius: 0 0 5px 5px;
-  }
-  .time {
-    position: absolute;
-    left: 6px;
-    font-size: 12px;
-    color: #555;
-  }
-</style>
-</head>
-<body>
-
-<div id="toolbar">
-  <button id="btnPlay" class="active">▶ Play</button>
-  <button id="btnEdit">✎ Editor</button>
-  <button id="btnRestart">Restart</button>
-  <button id="btnClear">Clear Chart</button>
-  <button id="btnLong">Long: OFF</button>
-</div>
-
-<div id="wrap">
-  <div id="game">
-    <div id="score">Score: 0</div>
-    <div id="combo">Combo: 0</div>
-    <div id="judgment"></div>
-    <div class="hit-line"></div>
-    <div class="keys"><span>D</span><span>F</span><span>J</span><span>K</span></div>
-  </div>
-
-  <div id="editor">
-    <div id="editor-canvas"></div>
-  </div>
-</div>
-
+<html><head><meta charset="utf-8"><title>Geometrical Dash</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<style>html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none}
+canvas{display:block;width:100vw;height:100vh;object-fit:contain}</style></head>
+<body><canvas id="c" width="1280" height="720"></canvas>
 <script>
-// ===================== SETTINGS =====================
-const LANE_W = 120;
-const SCROLL_SPEED = 320;        // pixels per second (lower = slower)
-const HIT_Y = 520;
-const PERFECT = 0.11;
-const GOOD = 0.18;
-const EDITOR_SCALE = 100;        // pixels per second in editor
+const cv=document.getElementById('c'),x=cv.getContext('2d');
+const W=1280,H=720,G=600,B=40,SPD=416,GR=5500,JV=960,PADV=1450,CEIL=9*B,PX=300;
 
-const KEYS = ['d', 'f', 'j', 'k'];
-const COLORS = ['#33d6ff', '#ff5ab8', '#ffd633', '#5aff73'];
+// ---------- LEVEL ----------
+const L=[];let END=255;
+const sp=(a,y=0)=>L.push({t:'s',x:a*B,y:y*B,w:B,h:B});
+const bl=(a,y,w=1,h=1)=>L.push({t:'b',x:a*B,y:y*B,w:w*B,h:h*B});
+const pad=a=>L.push({t:'p',x:a*B,y:0,w:B,h:B});
+const orb=(a,y)=>L.push({t:'o',x:a*B,y:y*B,w:B,h:B});
+const portal=(a,m)=>L.push({t:'g',x:a*B,y:0,w:B,h:B,m});
+[14,20,21,27,28,33].forEach(a=>sp(a));
+bl(38,0,1,1);bl(39,0,1,2);bl(40,0,1,3);bl(41,0,1,2);bl(42,0,1,1);sp(46);sp(47);
+bl(53,0,4,1);sp(55,1);sp(61);sp(62);
+pad(68);sp(70);sp(71);
+sp(80);sp(81);sp(82);sp(83);sp(84);orb(82,1.2);
+sp(92);sp(93);bl(98,0,1,1);sp(101);sp(102);bl(106,0,2,2);sp(110);sp(111);sp(115);
+portal(120,'ship');
+[[130,3,0],[138,0,4],[146,4,3],[154,2,4],[162,5,0],[168,0,5],[176,3,3],[184,1,5],[192,5,1]].forEach(([a,f,c])=>{
+  if(f)bl(a,0,2,f); if(c)bl(a,9-c,2,c);});
+portal(205,'cube');
+sp(212);sp(213);bl(218,0,3,1);sp(224);sp(225);
+pad(231);sp(234);sp(235);
+bl(240,0,1,1);bl(241,0,1,2);sp(244);sp(250);sp(251);
 
-// Easy starter chart
-let chart = [
-  {t: 1.5, lane: 0, d: 0},
-  {t: 2.3, lane: 1, d: 0},
-  {t: 3.1, lane: 2, d: 0},
-  {t: 3.9, lane: 3, d: 0},
-  {t: 4.7, lane: 0, d: 0},
-  {t: 5.5, lane: 1, d: 0},
-  {t: 6.3, lane: 2, d: 0},
-  {t: 7.1, lane: 3, d: 0},
-];
-
-// ===================== STATE =====================
-let mode = 'play';
-let longMode = false;
-let notes = [];
-let chartIndex = 0;
-let score = 0;
-let combo = 0;
-let startTime = 0;
-let playing = false;
-let pressed = [false, false, false, false];
-
-const game = document.getElementById('game');
-const editor = document.getElementById('editor');
-const editorCanvas = document.getElementById('editor-canvas');
-const scoreEl = document.getElementById('score');
-const comboEl = document.getElementById('combo');
-const judgmentEl = document.getElementById('judgment');
-
-// Create play lanes
-for (let i = 0; i < 4; i++) {
-  const lane = document.createElement('div');
-  lane.className = 'lane';
-  lane.style.left = (i * LANE_W) + 'px';
-  lane.style.background = i % 2 === 0 ? '#0c0c14' : '#101018';
-  game.appendChild(lane);
+// ---------- STATE ----------
+let state='menu',hold=false,pressed=false,attempt=0,best=0,deadT=0,flash=0,shake=0,P,parts=[],acc=0,last=0,t0=0;
+function reset(){
+  P={x:0,y:0,vy:0,rot:0,mode:'cube',gr:true};
+  L.forEach(o=>o.used=false);parts=[];attempt++;state='play';flash=0;
+  if(ac){nt=ac.currentTime+.05;ns=0;musicRun=true;}
 }
-
-// Create editor lanes + time markers
-for (let i = 0; i < 4; i++) {
-  const lane = document.createElement('div');
-  lane.className = 'ed-lane';
-  lane.style.left = (i * LANE_W) + 'px';
-  editorCanvas.appendChild(lane);
+function die(){
+  if(state!=='play')return;
+  state='dead';deadT=.8;flash=.5;shake=.25;musicRun=false;
+  best=Math.max(best,pct());
+  for(let i=0;i<30;i++){const a=Math.random()*6.28,s=150+Math.random()*450;
+    parts.push({x:P.x+20,y:P.y+20,vx:Math.cos(a)*s,vy:Math.sin(a)*s+150,life:.7,sz:6+Math.random()*8,c:'#5ef'});}
+  if(ac){const t=ac.currentTime;tone(200,t,.35,'sawtooth',.25);tone(90,t,.45,'square',.2);}
 }
-for (let t = 0; t <= 60; t++) {
-  const label = document.createElement('div');
-  label.className = 'time';
-  label.style.top = (t * EDITOR_SCALE) + 'px';
-  label.textContent = t + 's';
-  editorCanvas.appendChild(label);
-}
+const pct=()=>Math.min(100,Math.floor(P.x/(END*B)*100));
 
-// ===================== HELPERS =====================
-function showJudgment(text, color) {
-  judgmentEl.textContent = text;
-  judgmentEl.style.color = color;
-  judgmentEl.style.opacity = '1';
-  judgmentEl.style.transform = 'translateX(-50%) scale(1.3)';
-  setTimeout(() => {
-    judgmentEl.style.transition = 'all 0.3s';
-    judgmentEl.style.opacity = '0';
-    judgmentEl.style.transform = 'translateX(-50%) scale(0.8)';
-  }, 50);
-}
+// ---------- AUDIO ----------
+let ac,mOn=true,nt=0,ns=0,musicRun=false;
+function audio(){if(!ac){try{ac=new(window.AudioContext||window.webkitAudioContext)()}catch(e){}}if(ac&&ac.state==='suspended')ac.resume();}
+function tone(f,t,d,type,v){const o=ac.createOscillator(),g=ac.createGain();o.type=type;o.frequency.value=f;
+  g.gain.setValueAtTime(v,t);g.gain.exponentialRampToValueAtTime(.001,t+d);o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+d)}
+function kick(t){const o=ac.createOscillator(),g=ac.createGain();o.frequency.setValueAtTime(160,t);
+  o.frequency.exponentialRampToValueAtTime(40,t+.12);g.gain.setValueAtTime(.45,t);g.gain.exponentialRampToValueAtTime(.001,t+.18);
+  o.connect(g);g.connect(ac.destination);o.start(t);o.stop(t+.2)}
+const bass=[55,55,65.4,49],scale=[220,261.6,329.6,392,440,392,329.6,261.6];
+setInterval(()=>{if(!ac||!musicRun||!mOn)return;
+  while(nt<ac.currentTime+.2){
+    if(ns%2==0)kick(nt);
+    tone(bass[(ns>>3)%4],nt,.18,'sawtooth',.08);
+    if(ns%2==1||ns%8==4)tone(scale[(ns*3)%8],nt,.12,'square',.035);
+    nt+=.2;ns++;}
+},30);
 
-function updateUI() {
-  scoreEl.textContent = 'Score: ' + score;
-  comboEl.textContent = 'Combo: ' + combo;
-}
+// ---------- INPUT ----------
+function press(){audio();
+  if(state==='menu'||state==='win'){if(state==='win'){state='menu';return}reset();return}
+  hold=true;pressed=true;}
+function release(){hold=false}
+addEventListener('keydown',e=>{
+  if(['Space','ArrowUp','KeyW'].includes(e.code)){e.preventDefault();if(!e.repeat)press();}
+  if(e.code==='Escape'){state='menu';musicRun=false;}
+  if(e.code==='KeyM'){mOn=!mOn;}
+});
+addEventListener('keyup',e=>{if(['Space','ArrowUp','KeyW'].includes(e.code))release()});
+addEventListener('mousedown',press);addEventListener('mouseup',release);
+addEventListener('touchstart',e=>{e.preventDefault();press()},{passive:false});
+addEventListener('touchend',release);
 
-// ===================== PLAY LOGIC =====================
-function spawnNote(data) {
-  const el = document.createElement('div');
-  el.className = 'note';
-  el.style.color = COLORS[data.lane];
-  el.style.left = (data.lane * LANE_W + 10) + 'px';
-
-  const head = document.createElement('div');
-  head.className = 'note-head';
-  head.style.background = COLORS[data.lane];
-  el.appendChild(head);
-
-  if (data.d > 0) {
-    const body = document.createElement('div');
-    body.className = 'note-body';
-    body.style.height = (data.d * SCROLL_SPEED) + 'px';
-    body.style.background = COLORS[data.lane];
-    el.appendChild(body);
+// ---------- PHYSICS ----------
+const ov=(ax,ay,aw,ah,bx,by,bw,bh)=>ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
+function step(dt){
+  const oy=P.y;P.x+=SPD*dt;
+  if(P.mode==='cube'){
+    if(P.gr&&hold){P.vy=JV;P.gr=false}
+    P.vy-=GR*dt;if(P.vy<-1500)P.vy=-1500;
+  }else{
+    P.vy+=(hold?2900:-2900)*dt;P.vy=Math.max(-560,Math.min(560,P.vy));
   }
-
-  game.appendChild(el);
-
-  notes.push({
-    el: el,
-    lane: data.lane,
-    time: data.t,
-    duration: data.d || 0,
-    active: true
-  });
-}
-
-function tryHit(lane) {
-  if (!playing || mode !== 'play') return;
-
-  const now = (performance.now() - startTime) / 1000;
-  let best = null;
-  let bestDiff = 999;
-
-  for (const n of notes) {
-    if (n.lane === lane && n.active) {
-      const diff = Math.abs(now - n.time);
-      if (diff < bestDiff) {
-        bestDiff = diff;
-        best = n;
+  P.y+=P.vy*dt;
+  let gr=false;
+  if(P.y<=0){P.y=0;if(P.vy<0)P.vy=0;gr=true}
+  if(P.mode==='ship'&&P.y+B>CEIL){P.y=CEIL-B;if(P.vy>0)P.vy=0}
+  for(const o of L){
+    if(o.x>P.x+100||o.x+o.w<P.x-100)continue;
+    if(o.t==='b'){
+      if(ov(P.x+2,P.y,B-4,B,o.x,o.y,o.w,o.h)){
+        if(oy>=o.y+o.h-14&&P.vy<=0){P.y=o.y+o.h;P.vy=0;gr=true}
+        else if(P.mode==='ship'&&oy+B<=o.y+14&&P.vy>0){P.y=o.y-B;P.vy=0}
+        else{die();return}
       }
+    }else if(o.t==='s'){
+      if(ov(P.x+9,P.y+9,B-18,B-18,o.x+13,o.y,14,22)){die();return}
+    }else if(o.t==='p'){
+      if(ov(P.x,P.y,B,B,o.x,o.y,B,10)&&!o.used){o.used=true;P.vy=PADV;gr=false;if(P.mode==='ship')P.vy=700}
+    }else if(o.t==='o'){
+      if(pressed&&!o.used&&ov(P.x+4,P.y+4,B-8,B-8,o.x-4,o.y-4,B+8,B+8)){o.used=true;P.vy=JV;pressed=false;gr=false}
+    }else if(o.t==='g'){
+      if(!o.used&&P.x+B/2>o.x){o.used=true;P.mode=o.m;if(ac)tone(o.m==='ship'?660:440,ac.currentTime,.2,'triangle',.15)}
     }
   }
+  P.gr=gr;
+  if(P.mode==='cube'){
+    if(!gr)P.rot+=8.6*dt;
+    else{const tg=Math.round(P.rot/(Math.PI/2))*Math.PI/2;P.rot+=(tg-P.rot)*Math.min(1,dt*30);}
+  }else P.rot=-Math.atan2(P.vy,SPD);
+  if(P.x>=END*B){state='win';musicRun=false;best=100;
+    if(ac)[523,659,784,1047].forEach((f,i)=>tone(f,ac.currentTime+i*.1,.4,'triangle',.2))}
+}
 
-  if (!best) return;
-
-  if (bestDiff <= PERFECT) {
-    hit(best, 'Perfect', 300);
-  } else if (bestDiff <= GOOD) {
-    hit(best, 'Good', 100);
+// ---------- RENDER ----------
+function hue(){return state==='menu'?220:(200+(P.x/(END*B))*220)%360}
+function draw(dt){
+  const cx=P.x-PX,h=hue();
+  x.save();
+  if(shake>0){x.translate((Math.random()-.5)*14,(Math.random()-.5)*14)}
+  let g=x.createLinearGradient(0,0,0,H);g.addColorStop(0,`hsl(${h},75%,38%)`);g.addColorStop(1,`hsl(${h},75%,16%)`);
+  x.fillStyle=g;x.fillRect(-20,-20,W+40,H+40);
+  x.strokeStyle='rgba(255,255,255,.07)';x.lineWidth=2;x.beginPath();
+  const off=-(cx*.25)%160;
+  for(let i=off;i<W;i+=160){x.moveTo(i,0);x.lineTo(i,G)}
+  for(let j=40;j<G;j+=160){x.moveTo(0,j);x.lineTo(W,j)}
+  x.stroke();
+  // ground
+  x.fillStyle=`hsl(${h},65%,10%)`;x.fillRect(-20,G,W+40,H-G+20);
+  x.fillStyle=`hsl(${h},80%,55%)`;x.fillRect(-20,G,W+40,4);
+  x.strokeStyle=`hsla(${h},80%,60%,.25)`;x.lineWidth=2;x.beginPath();
+  for(let i=-(cx%B);i<W;i+=B){x.moveTo(i,G);x.lineTo(i-40,H)}x.stroke();
+  if(P.mode==='ship'){
+    x.fillStyle=`hsl(${h},65%,10%)`;x.fillRect(-20,-20,W+40,G-CEIL+20);
+    x.fillStyle=`hsl(${h},80%,55%)`;x.fillRect(-20,G-CEIL-4,W+40,4);
   }
-}
-
-function hit(n, judgment, points) {
-  n.active = false;
-  score += points;
-  combo++;
-  showJudgment(judgment, judgment === 'Perfect' ? '#7aff9e' : '#ffd56a');
-
-  n.el.style.transition = 'opacity 0.1s, transform 0.1s';
-  n.el.style.opacity = '0';
-  n.el.style.transform = 'scale(1.4)';
-  setTimeout(() => n.el.remove(), 100);
-
-  updateUI();
-}
-
-function miss(n) {
-  n.active = false;
-  combo = 0;
-  showJudgment('Miss', '#ff5555');
-  n.el.remove();
-  updateUI();
-}
-
-// Main loop - this is the important part
-function loop(timestamp) {
-  if (!startTime) startTime = timestamp;
-  const now = (timestamp - startTime) / 1000;
-
-  if (playing && mode === 'play') {
-    // Spawn notes early enough
-    while (chartIndex < chart.length && chart[chartIndex].t - 2.2 <= now) {
-      spawnNote(chart[chartIndex]);
-      chartIndex++;
-    }
-
-    // Move notes using pure time math (this makes them land correctly)
-    for (let i = notes.length - 1; i >= 0; i--) {
-      const n = notes[i];
-      const timeLeft = n.time - now;
-      const y = HIT_Y - (timeLeft * SCROLL_SPEED);
-
-      n.el.style.top = y + 'px';
-
-      // Too late → miss
-      if (now > n.time + GOOD + 0.05 && n.active) {
-        miss(n);
-        notes.splice(i, 1);
+  // objects
+  for(const o of L){
+    const sx=o.x-cx;if(sx<-200||sx>W+200)continue;
+    const by=G-o.y;
+    if(o.t==='b'){
+      for(let i=0;i<o.w/B;i++)for(let j=0;j<o.h/B;j++){
+        const tx=sx+i*B,ty=by-(j+1)*B;
+        x.fillStyle='rgba(0,0,0,.8)';x.fillRect(tx,ty,B,B);
+        x.strokeStyle='#fff';x.lineWidth=2;x.strokeRect(tx+1,ty+1,B-2,B-2);
+        x.strokeStyle=`hsla(${h},90%,65%,.5)`;x.strokeRect(tx+6,ty+6,B-12,B-12);
       }
+    }else if(o.t==='s'){
+      x.beginPath();x.moveTo(sx+2,by);x.lineTo(sx+B/2,by-B+2);x.lineTo(sx+B-2,by);x.closePath();
+      x.fillStyle='#000';x.fill();x.strokeStyle='#fff';x.lineWidth=2;x.stroke();
+    }else if(o.t==='p'){
+      x.shadowColor='#ff0';x.shadowBlur=14;x.fillStyle='#ff0';
+      x.beginPath();x.ellipse(sx+B/2,by-1,17,8,0,Math.PI,0);x.fill();x.shadowBlur=0;
+    }else if(o.t==='o'){
+      x.shadowColor='#ff0';x.shadowBlur=18;x.fillStyle='#fe3';
+      x.beginPath();x.arc(sx+B/2,by-B/2,11,0,6.28);x.fill();
+      x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc(sx+B/2,by-B/2,19,0,6.28);x.stroke();x.shadowBlur=0;
+    }else if(o.t==='g'){
+      const col=o.m==='ship'?'#f6c':'#5f8';
+      x.shadowColor=col;x.shadowBlur=20;x.strokeStyle=col;x.lineWidth=6;
+      x.beginPath();x.ellipse(sx+B/2,by-60,16,66,0,0,6.28);x.stroke();x.shadowBlur=0;
     }
   }
-
-  requestAnimationFrame(loop);
-}
-
-// Keyboard
-document.addEventListener('keydown', e => {
-  const idx = KEYS.indexOf(e.key.toLowerCase());
-  if (idx === -1) return;
-  if (!pressed[idx]) {
-    pressed[idx] = true;
-    tryHit(idx);
+  // attempt text
+  if(attempt>0){x.fillStyle='#fff';x.font='bold 54px Arial';x.textAlign='left';
+    x.fillText('Attempt '+attempt,PX+200-P.x,G-300);}
+  // particles
+  for(const p of parts){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=1400*dt;
+    x.globalAlpha=Math.max(0,p.life/.7);x.fillStyle=p.c;x.fillRect(p.x-cx-p.sz/2,G-p.y-p.sz/2,p.sz,p.sz)}
+  x.globalAlpha=1;parts=parts.filter(p=>p.life>0);
+  // player
+  if(state!=='dead'&&state!=='menu')drawPlayer(PX,G-P.y-B);
+  x.restore();
+  // flash
+  if(flash>0){x.fillStyle=`rgba(255,255,255,${flash})`;x.fillRect(0,0,W,H)}
+  // HUD
+  if(state==='play'||state==='dead'){
+    x.fillStyle='rgba(0,0,0,.5)';x.fillRect(340,20,600,16);
+    x.fillStyle='#4f6';x.fillRect(340,20,6*pct(),16);
+    x.strokeStyle='#fff';x.lineWidth=2;x.strokeRect(340,20,600,16);
+    x.fillStyle='#fff';x.font='bold 22px Arial';x.textAlign='left';x.fillText(pct()+'%',950,35);
   }
-});
-document.addEventListener('keyup', e => {
-  const idx = KEYS.indexOf(e.key.toLowerCase());
-  if (idx !== -1) pressed[idx] = false;
-});
-
-// ===================== EDITOR =====================
-function renderEditor() {
-  editorCanvas.querySelectorAll('.ed-note').forEach(n => n.remove());
-
-  chart.forEach((data, i) => {
-    const el = document.createElement('div');
-    el.className = 'ed-note';
-    el.style.color = COLORS[data.lane];
-    el.style.left = (data.lane * LANE_W + 10) + 'px';
-    el.style.top = (data.t * EDITOR_SCALE) + 'px';
-
-    const head = document.createElement('div');
-    head.className = 'head';
-    head.style.background = COLORS[data.lane];
-    el.appendChild(head);
-
-    if (data.d > 0) {
-      const body = document.createElement('div');
-      body.className = 'body';
-      body.style.height = (data.d * EDITOR_SCALE) + 'px';
-      body.style.background = COLORS[data.lane];
-      el.appendChild(body);
-    }
-
-    el.oncontextmenu = e => {
-      e.preventDefault();
-      chart.splice(i, 1);
-      renderEditor();
-    };
-
-    editorCanvas.appendChild(el);
-  });
-}
-
-let dragStart = null;
-
-editorCanvas.addEventListener('mousedown', e => {
-  if (mode !== 'edit') return;
-  const rect = editorCanvas.getBoundingClientRect();
-  const x = e.clientX - rect.left;
-  const y = e.clientY - rect.top + editor.scrollTop;
-  const lane = Math.floor(x / LANE_W);
-  if (lane < 0 || lane > 3) return;
-
-  const t = y / EDITOR_SCALE;
-
-  if (e.button === 0) {
-    if (longMode || e.shiftKey) {
-      dragStart = { t, lane };
-    } else {
-      chart.push({ t: Math.max(0.5, t), lane, d: 0 });
-      chart.sort((a, b) => a.t - b.t);
-      renderEditor();
-    }
+  x.textAlign='center';
+  if(state==='menu'){
+    x.fillStyle='rgba(0,0,0,.45)';x.fillRect(0,0,W,H);
+    x.font='bold 96px Arial';x.lineWidth=10;x.strokeStyle='#000';x.fillStyle='#fff';
+    x.strokeText('GEOMETRICAL DASH',W/2,260);x.fillText('GEOMETRICAL DASH',W/2,260);
+    const bob=Math.sin(performance.now()/300)*6;
+    x.fillStyle='#5f6';x.strokeStyle='#000';x.lineWidth=8;
+    x.beginPath();x.moveTo(W/2-40,330+bob);x.lineTo(W/2+50,385+bob);x.lineTo(W/2-40,440+bob);x.closePath();x.stroke();x.fill();
+    x.fillStyle='#fff';x.font='24px Arial';
+    x.fillText('Click / Space / Up / Touch to play and jump  -  hold to keep jumping',W/2,520);
+    x.fillText('Esc: menu   M: mute music   Best: '+best+'%',W/2,556);
   }
-});
-
-editorCanvas.addEventListener('mouseup', e => {
-  if (!dragStart) return;
-  const rect = editorCanvas.getBoundingClientRect();
-  const y = e.clientY - rect.top + editor.scrollTop;
-  const endT = y / EDITOR_SCALE;
-  const duration = Math.max(0.25, endT - dragStart.t);
-
-  chart.push({ t: dragStart.t, lane: dragStart.lane, d: duration });
-  chart.sort((a, b) => a.t - b.t);
-  dragStart = null;
-  renderEditor();
-});
-
-// ===================== BUTTONS =====================
-function startPlay() {
-  mode = 'play';
-  document.getElementById('btnPlay').classList.add('active');
-  document.getElementById('btnEdit').classList.remove('active');
-  game.style.display = 'block';
-  editor.style.display = 'none';
-
-  // Full reset
-  notes.forEach(n => n.el.remove());
-  notes = [];
-  chartIndex = 0;
-  score = 0;
-  combo = 0;
-  startTime = 0;
-  playing = true;
-  updateUI();
+  if(state==='win'){
+    x.fillStyle='rgba(0,0,0,.55)';x.fillRect(0,0,W,H);
+    x.font='bold 84px Arial';x.fillStyle='#ff4';x.strokeStyle='#000';x.lineWidth=8;
+    x.strokeText('LEVEL COMPLETE!',W/2,320);x.fillText('LEVEL COMPLETE!',W/2,320);
+    x.fillStyle='#fff';x.font='32px Arial';x.fillText('Attempts: '+attempt,W/2,390);
+    x.font='24px Arial';x.fillText('Click to return to menu',W/2,450);
+  }
+}
+function drawPlayer(sx,sy){
+  x.save();x.translate(sx+B/2,sy+B/2);x.rotate(P.rot);
+  if(P.mode==='ship'){
+    x.fillStyle='#f6c';x.strokeStyle='#000';x.lineWidth=3;
+    x.beginPath();x.moveTo(-26,6);x.lineTo(-18,-6);x.lineTo(24,-2);x.lineTo(30,10);x.lineTo(-22,16);x.closePath();x.fill();x.stroke();
+    x.save();x.translate(2,-10);x.scale(.62,.62);cube();x.restore();
+  }else cube();
+  x.restore();
+}
+function cube(){
+  x.fillStyle='#5ef';x.fillRect(-20,-20,40,40);
+  x.fillStyle='#fd2';x.fillRect(-14,-14,28,28);
+  x.fillStyle='#000';x.fillRect(-10,-8,8,8);x.fillRect(4,-8,8,8);x.fillRect(-10,6,22,4);
+  x.strokeStyle='#000';x.lineWidth=3;x.strokeRect(-20,-20,40,40);
 }
 
-document.getElementById('btnPlay').onclick = startPlay;
-
-document.getElementById('btnEdit').onclick = () => {
-  mode = 'edit';
-  playing = false;
-  document.getElementById('btnEdit').classList.add('active');
-  document.getElementById('btnPlay').classList.remove('active');
-  game.style.display = 'none';
-  editor.style.display = 'block';
-  renderEditor();
-};
-
-document.getElementById('btnRestart').onclick = startPlay;
-
-document.getElementById('btnClear').onclick = () => {
-  chart = [];
-  renderEditor();
-};
-
-document.getElementById('btnLong').onclick = function () {
-  longMode = !longMode;
-  this.textContent = 'Long: ' + (longMode ? 'ON' : 'OFF');
-  this.classList.toggle('active', longMode);
-};
-
-// Start the game
-startPlay();
-requestAnimationFrame(loop);
-</script>
-</body>
-</html>
+// ---------- LOOP ----------
+function frame(ts){
+  const dt=Math.min(.05,(ts-last)/1000||0);last=ts;
+  if(!P)P={x:0,y:0,vy:0,rot:0,mode:'cube',gr:true};
+  if(state==='menu'){P.x=(ts/1000*SPD*.5)%(60*B);P.y=0;P.rot=0;P.mode='cube'}
+  acc+=dt;
+  while(acc>=1/240){
+    if(state==='play')step(1/240);
+    acc-=1/240;
+  }
+  pressed=false;
+  if(state==='dead'){deadT-=dt;if(deadT<=0)reset()}
+  if(flash>0)flash=Math.max(0,flash-dt*1.5);
+  if(shake>0)shake-=dt;
+  draw(dt);
+  requestAnimationFrame(frame);
+}
+requestAnimationFrame(frame);
+</script></body></html>
