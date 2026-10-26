@@ -74,7 +74,7 @@ input[type=number]{width:58px}input[type=color]{padding:0;height:24px;width:38px
 </div></div>
 
 <div id="cinp" class="pn" style="left:190px;bottom:12px;width:min(840px,calc(100vw - 440px))">
-<div class="ph"><span>🎬 Cinematic Timeline <small style="opacity:.6">(position in blocks &middot; scrub = click/drag track)</small></span><button class="px" data-c="cinp">✕</button></div>
+<div class="ph"><span>🎬 Cinematic Timeline <small style="opacity:.6">(position in blocks · scrub = click/drag track)</small></span><button class="px" data-c="cinp">✕</button></div>
 <div class="pb">
 <div class="rw"><select id="kt" class="b"><option value="bg">Background color</option><option value="gnd">Ground color</option><option value="flash">Flash</option><option value="shake">Shake</option><option value="zoom">Zoom</option><option value="tilt">Tilt</option><option value="fade">Fade to color</option><option value="text">Caption text</option></select>
 <button class="b" id="kAdd">+ Add at playhead</button><button class="b" id="kDup">Duplicate</button><button class="b" id="kDel">Delete</button><span id="kinfo" style="opacity:.7"></span></div>
@@ -170,10 +170,14 @@ function cin(xb){
     else if(ty==='gnd')o.gnd=mix(o.gnd||mix(o.bg,'#ffffff',.2),k.c,s);
     else if(ty==='zoom')o.zm+=(k.v-o.zm)*s;
     else if(ty==='tilt')o.tl+=(k.v-o.tl)*s;
-    else if(ty==='fade'){o.fd+=(k.v-o.fd)*s;o.fdc=k.c}
     else if(u<1){
       if(ty==='flash'){const a=(1-u)*k.v;if(a>o.fl){o.fl=a;o.flc=k.c}}
       else if(ty==='shake')o.sh=Math.max(o.sh,k.v*(1-u));
+      else if(ty==='fade'){
+        // Temporary overlay that rises and falls (never sticks permanently)
+        const intensity = Math.sin(Math.min(1,u)*Math.PI) * (k.v||1);
+        if(intensity > o.fd){o.fd = intensity; o.fdc = k.c;}
+      }
       else if(ty==='text')o.tx={s:k.s,a:Math.min(1,u*8,(1-u)*8),c:k.c};
     }
   }
@@ -284,12 +288,30 @@ function step(dt){
       if(ov(P.x+(B-hitW)/2,P.y,hitW,hitH,ux,uy,o.w,o.h)){
         if(o.t==='sl'){P.vy=Math.max(P.vy,600*gDir);gr=false}
         else{
-          const playerBottom=P.y,playerTop=P.y+hitH,blockTop=uy+o.h,blockBottom=uy;
-          // More forgiving top/bottom landing (fixes ball + cube corner deaths on safe blocks)
-          if(P.gr&&playerBottom<blockTop&&playerBottom>blockTop-30&&P.vy<=50){P.y=blockTop;P.vy=0;gr=true}
-          else if(!P.gr&&playerTop>blockBottom&&playerTop<blockBottom+30&&P.vy>=-50){P.y=blockBottom-hitH;P.vy=0;gr=true}
-          else if(P.mode==='ship'&&P.gr&&playerTop>blockBottom&&playerTop<blockBottom+20&&P.vy>0){P.y=blockBottom-hitH;P.vy=0}
-          else{die();return}
+          const playerBottom = P.y;
+          const playerTop = P.y + hitH;
+          const blockTop = uy + o.h;
+          const blockBottom = uy;
+          // Proper platform resolution: land if we were above or are still near the surface
+          const wasAbove = oy >= blockTop - 12;
+          const nearTop = playerBottom < blockTop + 6 && playerBottom > blockTop - 36;
+          const nearBottom = playerTop > blockBottom - 6 && playerTop < blockBottom + 36;
+
+          if(P.gr && (wasAbove || nearTop) && P.vy <= 120){
+            P.y = blockTop;
+            P.vy = 0;
+            gr = true;
+          } else if(!P.gr && (oy + hitH <= blockBottom + 12 || nearBottom) && P.vy >= -120){
+            P.y = blockBottom - hitH;
+            P.vy = 0;
+            gr = true;
+          } else if(P.mode==='ship' && P.gr && nearBottom && P.vy > 0){
+            P.y = blockBottom - hitH;
+            P.vy = 0;
+          } else {
+            // Clear side hit → die
+            die(); return;
+          }
         }
       }
     }else if(o.t==='s'||o.t==='v'){
@@ -533,7 +555,7 @@ function draw(dt){
 function drawPlayer(sx,sy){
   const sz=P.size;
   x.save();x.translate(sx+B/2,sy+B*sz/2);x.rotate(P.rot);x.scale(sz,sz);
-  if(P.dir<0)x.scale(-1,1); // face travel direction (fixes reverse portal visual)
+  if(P.dir<0)x.scale(-1,1); // face travel direction
   if(P.mode==='ship'){
     x.fillStyle=IC1;x.strokeStyle='#000';x.lineWidth=3;x.beginPath();x.moveTo(-26,6);x.lineTo(-18,-6);x.lineTo(24,-2);x.lineTo(30,10);x.lineTo(-22,16);x.closePath();x.fill();x.stroke();
     x.save();x.translate(2,-10);x.scale(.62,.62);cube();x.restore();
