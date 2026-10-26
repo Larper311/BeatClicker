@@ -283,10 +283,14 @@ function step(dt){
     if(o.t==='b'||o.t==='sl'){
       if(ov(P.x+(B-hitW)/2,P.y,hitW,hitH,ux,uy,o.w,o.h)){
         if(o.t==='sl'){P.vy=Math.max(P.vy,600*gDir);gr=false}
-        else if(P.gr&&oy>=uy+o.h-16&&P.vy<=0){P.y=uy+o.h;P.vy=0;gr=true}
-        else if(!P.gr&&oy+hitH<=uy+16&&P.vy>=0){P.y=uy-hitH;P.vy=0;gr=true}
-        else if(P.mode==='ship'&&P.gr&&oy+hitH<=uy+14&&P.vy>0){P.y=uy-hitH;P.vy=0}
-        else{die();return}
+        else{
+          const playerBottom=P.y,playerTop=P.y+hitH,blockTop=uy+o.h,blockBottom=uy;
+          // More forgiving top/bottom landing (fixes ball + cube corner deaths on safe blocks)
+          if(P.gr&&playerBottom<blockTop&&playerBottom>blockTop-30&&P.vy<=50){P.y=blockTop;P.vy=0;gr=true}
+          else if(!P.gr&&playerTop>blockBottom&&playerTop<blockBottom+30&&P.vy>=-50){P.y=blockBottom-hitH;P.vy=0;gr=true}
+          else if(P.mode==='ship'&&P.gr&&playerTop>blockBottom&&playerTop<blockBottom+20&&P.vy>0){P.y=blockBottom-hitH;P.vy=0}
+          else{die();return}
+        }
       }
     }else if(o.t==='s'||o.t==='v'){
       const h=o.hb;if(ov(P.x+(B-hitW)/2+4,P.y+4,hitW-8,hitH-8,h[0]+mx,h[1]+my,h[2],h[3])){die();return}
@@ -529,6 +533,7 @@ function draw(dt){
 function drawPlayer(sx,sy){
   const sz=P.size;
   x.save();x.translate(sx+B/2,sy+B*sz/2);x.rotate(P.rot);x.scale(sz,sz);
+  if(P.dir<0)x.scale(-1,1); // face travel direction (fixes reverse portal visual)
   if(P.mode==='ship'){
     x.fillStyle=IC1;x.strokeStyle='#000';x.lineWidth=3;x.beginPath();x.moveTo(-26,6);x.lineTo(-18,-6);x.lineTo(24,-2);x.lineTo(30,10);x.lineTo(-22,16);x.closePath();x.fill();x.stroke();
     x.save();x.translate(2,-10);x.scale(.62,.62);cube();x.restore();
