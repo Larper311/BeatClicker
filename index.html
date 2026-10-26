@@ -56,21 +56,30 @@ input[type=number]{width:58px}input[type=color]{padding:0;height:24px;width:38px
 <div class="ph"><span>Objects</span><button class="px" data-c="pal">✕</button></div>
 <div class="pb" id="palb"></div></div>
 
-<div id="insp" class="pn" style="right:8px;top:46px;width:228px;max-height:calc(100vh - 150px)">
+<div id="insp" class="pn" style="right:8px;top:46px;width:236px;max-height:calc(100vh - 150px)">
 <div class="ph"><span id="ihd">Inspector</span><button class="px" data-c="insp">✕</button></div>
 <div class="pb">
-<div class="rw">X<input type="number" id="ix" step=".25"> Y<input type="number" id="iy" step=".25"></div>
-<div class="rw">W<input type="number" id="iw" step=".25"> H<input type="number" id="ih" step=".25"></div>
-<div class="rw"><button class="b" id="fxl">Flip X</button><button class="b" id="fyl">Flip Y</button><button class="b" id="rotb">Rotate (R)</button></div>
-<div class="rw">Skin <select id="skn"><option value="0">Classic</option><option value="1">Glossy</option><option value="2">Neon</option><option value="3">Metal</option><option value="4">Glass</option><option value="5">Lava</option><option value="6">Ice</option><option value="7">Magma</option><option value="8">Rock</option></select></div>
-<div class="rw">Color <input type="color" id="ocol" value="#ffffff"><button class="b" id="ocl">Reset</button></div>
-<div class="rw">Text <input id="otx" value="TEXT" style="width:130px"></div>
-<div class="rw">Pad/Orb <select id="lvl"><option value="1">Low</option><option value="2" selected>Normal</option><option value="3">High</option></select></div>
+<div class="rw" id="rXY">X<input type="number" id="ix" step=".25"> Y<input type="number" id="iy" step=".25"></div>
+<div class="rw" id="rWH">W<input type="number" id="iw" step=".25"> H<input type="number" id="ih" step=".25"></div>
+<div class="rw" id="rFlip"><button class="b" id="fxl">Flip X</button><button class="b" id="fyl">Flip Y</button><button class="b" id="rotb">Rotate (R)</button></div>
+<div class="rw" id="rSkin">Skin <select id="skn"><option value="0">Classic</option><option value="1">Glossy</option><option value="2">Neon</option><option value="3">Metal</option><option value="4">Glass</option><option value="5">Lava</option><option value="6">Ice</option><option value="7">Magma</option><option value="8">Rock</option></select></div>
+<div class="rw" id="rCol">Color <input type="color" id="ocol" value="#ffffff"><button class="b" id="ocl">Auto</button></div>
+<div class="rw" id="rTxt">Text <input id="otx" value="TEXT" style="width:130px"></div>
+<div class="rw" id="rLvl">Power <select id="lvl"><option value="1">Low</option><option value="2" selected>Normal</option><option value="3">High</option></select></div>
+<div class="rw" id="rSpd">Speed <b id="spdv">2</b>x <input id="spd" type="range" min=".25" max="6" step=".05" value="2" style="width:130px"></div>
+<div class="rw" id="rSz">Size <select id="szsel"><option value="0.6">Mini</option><option value="1">Normal</option><option value="1.4">Big</option></select></div>
+<div class="rw" id="rTp">Distance (blocks) <input id="tpd" type="number" value="8" min="1" max="60"></div>
+<div class="rw" id="rDir">Fires when <select id="fdir"><option value="">Auto</option><option value="b">Both ways</option><option value="r">Moving right</option><option value="l">Moving left</option></select></div>
+<div class="rw" id="rHue">Hue <input id="hue" type="range" min="0" max="359" value="200" style="width:150px"></div>
+<div id="rMv" style="display:flex;flex-direction:column;gap:6px">
 <div class="rw">Motion <select id="mva"><option value="0">None</option><option value="1">Up/Down</option><option value="2">Left/Right</option><option value="3">Circle</option></select></div>
 <div class="rw">Dist <span id="mvrv">2</span><input id="mvr" type="range" min=".5" max="8" step=".5" value="2"></div>
 <div class="rw">Speed <span id="mvsv">2</span><input id="mvs" type="range" min=".5" max="6" step=".25" value="2"></div>
 <div class="rw">Phase <span id="mvpv">0</span><input id="mvp" type="range" min="0" max="6.28" step=".1" value="0"></div>
-<div class="rw"><button class="b" id="mvw">Phase wave</button><button class="b" id="prvb">Motion (N)</button><button class="b" id="hbxb">Hitbox (H)</button></div>
+<div class="rw"><button class="b" id="mvw">Phase wave</button></div>
+</div>
+<div class="rw"><button class="b" id="prvb">Motion (N)</button><button class="b" id="hbxb">Hitbox (H)</button></div>
+<div style="opacity:.55;font-size:11px">Every object type keeps its own settings. Nothing selected = settings for the next object you place with the current tool.</div>
 </div></div>
 
 <div id="cinp" class="pn" style="left:190px;bottom:12px;width:min(840px,calc(100vw - 440px))">
@@ -185,11 +194,11 @@ function cin(xb){
 // ---------- STATE ----------
 let state='menu',hold=false,buf=0,paused=false,attempt=0,best=0,deadT=0,flash=0,shake=0,P,parts=[],acc=0,last=0,startX=0,lvOpen=false,curBG='#1f4fb0',neonE='#8cf',fc=0;
 let VX0=0,VX1=W,VY0=0,VY1=H; // visible area in pre-transform screen space (grows with zoom-out / tilt so nothing is cut off)
-P={x:0,y:0,vy:0,rot:0,mode:'cube',gr:true,sp:1,size:1,dir:1,mirror:false,coins:0,coy:0,dashT:0};
+P={x:0,y:0,vy:0,rot:0,mode:'cube',gr:true,sp:1,size:1,dir:1,mirror:false,coins:0,coy:0,dashT:0,cam:PX};
 function reset(sx=startX){
   startX=sx;
-  P={x:sx,y:0,vy:0,rot:0,mode:META.mode||'cube',gr:true,sp:+META.spd||1,size:1,dir:1,mirror:false,coins:0,coy:0,dashT:0};
-  L.forEach(o=>{o.used=false;
+  P={x:sx,y:0,vy:0,rot:0,mode:META.mode||'cube',gr:true,sp:+META.spd||1,size:1,dir:1,mirror:false,coins:0,coy:0,dashT:0,cam:PX};
+  L.forEach(o=>{o.used=false;o.side=undefined;
     if(o.x<sx){
       if(o.t==='g'){applyPortal(o);o.used=true}
       if(o.t==='d'){P.sp=o.m||1;o.used=true}
@@ -267,6 +276,7 @@ function step(dt){
   P.coy=Math.max(0,P.coy-dt);
   P.dashT=Math.max(0,P.dashT-dt);
   buf=Math.max(0,buf-dt);
+  P.cam+=((P.dir>0?PX:W-PX-B)-P.cam)*Math.min(1,dt*7); // camera swings to the other side after a reverse portal
   const sz=P.size,hitW=B*sz*0.85,hitH=B*sz;
   // BALL: click flips gravity while touching a surface (works on blocks, floor and ceiling)
   if(P.mode==='ball'&&buf>0&&P.coy>0){
@@ -347,11 +357,12 @@ function step(dt){
     }else if(o.t==='n'){
       if(!o.used&&ov(P.x,P.y,B,hitH,ux+6,uy+6,28,28)){o.used=true;P.coins++;burst(ux+20,uy+20,'#fc2',8);if(ac)tone(1200,ac.currentTime,.15,'triangle',.15)}
     }else if(o.t==='g'||o.t==='d'||o.t==='sz'||o.t==='tp'){
-      const c=P.x+B/2,oc=o.x+B/2;
-      if(!o.used&&(P.dir>0?c>=oc:c<=oc)){
-        o.used=true;
+      const c=P.x+B/2,oc=o.x+B/2,sd=c>=oc?1:-1;
+      const was=o.side;o.side=sd;
+      if(was!==undefined&&was!==sd&&!o.used&&((o.f||'b')==='b'||(o.f==='r')===(sd>0))){
+        o.used=true; // fires once per attempt, only when crossed in the direction it is set to
         if(o.t==='g')applyPortal(o);
-        else if(o.t==='d')P.sp=Math.max(0.5,Math.min(5,o.m||1));
+        else if(o.t==='d')P.sp=Math.max(0.25,Math.min(6,+o.m||1));
         else if(o.t==='sz')P.size=o.m||1;
         else if(o.t==='tp'){P.x+=(o.m||8)*B*P.dir;P.coy=0.05}
         burst(o.x+20,o.y+o.h/2,'#fff',10);
@@ -368,9 +379,11 @@ function step(dt){
   }else if(P.mode==='wave')P.rot=(hold?-1:1)*(P.gr?1:-1)*-Math.PI/4;
   else P.rot=-Math.atan2(P.vy,AS);
   if(P.dir>0&&P.x>=END*B){state='win';musicRun=false;best=100;if(ac)[523,659,784,1047].forEach((f,i)=>tone(f,ac.currentTime+i*.1,.4,'triangle',.2))}
-  if(P.x<0)P.x=0;
+  if(P.x<-60&&P.dir<0){die();return}
+  if(P.x<0&&P.dir>0)P.x=0;
 }
 // ---------- RENDER ----------
+const spdc=m=>`hsl(${Math.round(200-Math.min(1,Math.max(0,(m-.5)/4.5))*200)},90%,60%)`;
 const SPC={0.5:'#8af',0.8:'#fa0',1:'#4cf',1.5:'#4f6',2:'#f84',3:'#f44',4:'#f0f',5:'#fff'};
 const PC=['#f6c','#ff0','#f44'];
 const SK=[
@@ -415,9 +428,9 @@ function drawObj(o,sx,by,t,edit){
     x.closePath();const g=x.createRadialGradient(0,0,2,0,0,21);g.addColorStop(0,s.a);g.addColorStop(1,s.b);
     x.fillStyle=g;x.fill();x.strokeStyle=s.e;x.lineWidth=2;x.stroke();x.beginPath();x.arc(0,0,5,0,6.28);x.stroke();x.restore();
   }else if(o.t==='p'){
-    const c=PC[(o.m||2)-1];x.shadowColor=c;x.shadowBlur=14;x.fillStyle=c;x.beginPath();x.ellipse(sx+20,by-1,17,8,0,Math.PI,0);x.fill();x.shadowBlur=0;
+    const c=o.col||PC[(o.m||2)-1];x.shadowColor=c;x.shadowBlur=14;x.fillStyle=c;x.beginPath();x.ellipse(sx+20,by-1,17,8,0,Math.PI,0);x.fill();x.shadowBlur=0;
   }else if(o.t==='o'||o.t==='do'){
-    const c=o.t==='do'?'#0ff':PC[(o.m||2)-1];
+    const c=o.col||(o.t==='do'?'#0ff':PC[(o.m||2)-1]);
     x.shadowColor=c;x.shadowBlur=18;x.fillStyle=c;x.beginPath();x.arc(sx+20,by-20,11,0,6.28);x.fill();
     x.strokeStyle='#fff';x.lineWidth=2;x.beginPath();x.arc(sx+20,by-20,19,0,6.28);x.stroke();
     if(o.t==='do'){x.fillStyle='#000';x.font='bold 11px Arial';x.textAlign='center';x.fillText('D',sx+20,by-16)}
@@ -435,14 +448,16 @@ function drawObj(o,sx,by,t,edit){
     x.fillText(o.s||'text',sx,by-o.h*.25);x.restore();
   }else if(o.t==='g'||o.t==='d'||o.t==='sz'||o.t==='tp'){
     let col='#5f8';
-    if(o.t==='d')col=SPC[o.m]||'#fff';
-    else if(o.t==='sz')col=o.m<1?'#aaf':'#faa';
+    if(o.t==='d')col=spdc(+o.m||1);
+    else if(o.t==='sz')col=o.m<1?'#aaf':o.m>1?'#fa8':'#8f8';
     else if(o.t==='tp')col='#f0f';
     else col={ship:'#f6c',ball:'#4f8',ufo:'#8f4',wave:'#f84',grav:'#0ff',mirror:'#f0a',rev:'#a0f'}[o.m]||'#5f8';
+    if(o.col)col=o.col;
     x.shadowColor=col;x.shadowBlur=20;x.strokeStyle=col;x.lineWidth=6;x.beginPath();x.ellipse(sx+20,by-o.h/2,16,o.h/2+6,0,0,6.28);x.stroke();x.shadowBlur=0;
     x.fillStyle=col;x.font='bold 13px Arial';x.textAlign='center';
-    const label=o.t==='d'?(o.m+'x'):o.t==='sz'?(o.m<1?'MINI':'NORM'):o.t==='tp'?'TP':(o.m||'').toUpperCase().slice(0,4);
+    const label=o.t==='d'?(+(+o.m).toFixed(2)+'x'):o.t==='sz'?(o.m<1?'MINI':o.m>1?'BIG':'NORM'):o.t==='tp'?'TP':(o.m||'').toUpperCase().slice(0,4);
     x.fillText(label,sx+20,by-o.h/2+5);
+    if(o.f==='r'||o.f==='l')x.fillText(o.f==='r'?'▶':'◀',sx+20,by-o.h/2+22);
   }
   if(edit&&ed.hbx){x.strokeStyle='#f0f';x.lineWidth=1;
     if(o.t==='s'||o.t==='v'){const h=hr({t:o.t,r:o.r,x:0,y:0});x.strokeRect(sx+h[0],by-h[1]-h[3],h[2],h[3])}
@@ -504,7 +519,7 @@ function setView(zm,tl){
 }
 const MMC={s:'#f55',v:'#f55',w:'#f55',b:'#9bd',sl:'#9bd',p:'#f6c',o:'#ff0',do:'#0ff',g:'#5f8',n:'#fc2'};
 function draw(dt){
-  const E=state==='edit',cx=E?ed.cx:P.x-PX,t=performance.now()/1000,xb=E?(ed.cx+PX/ed.z)/B:P.x/B,C=cin(xb),FXo=!E||ed.pv;
+  const E=state==='edit',cx=E?ed.cx:P.x-P.cam,t=performance.now()/1000,xb=E?(ed.cx+PX/ed.z)/B:P.x/B,C=cin(xb),FXo=!E||ed.pv;
   let bg=C.bg;
   if(state==='play'&&!paused){const ph=(t*META.bpm/60)%1;bg=mix(bg,'#ffffff',Math.pow(1-ph,3)*.09)}
   const gl=C.gnd||mix(bg,'#ffffff',.2),gf=shade(C.gnd||bg,-.82);
@@ -547,7 +562,7 @@ function draw(dt){
   const OL=E?ed.data.map(o=>Object.assign(px(o),{src:o})):L;
   drawWorld(OL,cx,VW,E,t,false);
   if(FX&&!E){x.save();x.beginPath();x.rect(VX0-20,G+4,VX1-VX0+40,260);x.clip();x.translate(0,2*G);x.scale(1,-1);x.globalAlpha=.16;
-    drawWorld(OL,cx,VW,E,t,true);if(state==='play'||state==='win')drawPlayer(PX,G-P.y-B*P.size);x.restore()}
+    drawWorld(OL,cx,VW,E,t,true);if(state==='play'||state==='win')drawPlayer(P.cam,G-P.y-B*P.size);x.restore()}
   if(!E&&ed.hbx&&(state==='play'||state==='dead'||state==='win')){
     x.lineWidth=1.5;const mt=P.x/SPD;
     for(const o of L){
@@ -557,7 +572,7 @@ function draw(dt){
       else if(o.t==='w'){x.strokeStyle='#f33';x.beginPath();x.arc(sx+20,G-o.y-my-20,17,0,6.28);x.stroke()}
       else if(o.t==='b'||o.t==='sl'){x.strokeStyle='#39f';x.strokeRect(sx,G-o.y-my-o.h,o.w,o.h)}
     }
-    const hw=B*P.size*.85,hh=B*P.size;x.strokeStyle='#3f3';x.strokeRect(PX+(B-hw)/2,G-P.y-hh,hw,hh);
+    const hw=B*P.size*.85,hh=B*P.size;x.strokeStyle='#3f3';x.strokeRect(P.cam+(B-hw)/2,G-P.y-hh,hw,hh);
   }
   if(E){
     const T=TL.find(a=>a.id===ed.tool);
@@ -575,11 +590,11 @@ function draw(dt){
       x.strokeStyle='#0ff';x.lineWidth=2;x.beginPath();x.moveTo(PX/ed.z,G-34*B);x.lineTo(PX/ed.z,G);x.stroke();
     }
   }
-  if(!E&&attempt>0){x.fillStyle='rgba(255,255,255,.9)';x.font='bold 54px Arial';x.textAlign='left';x.fillText('Attempt '+attempt,PX+200-P.x+startX,G-300)}
+  if(!E&&attempt>0){x.fillStyle='rgba(255,255,255,.9)';x.font='bold 54px Arial';x.textAlign='left';x.fillText('Attempt '+attempt,startX+200-cx,G-300)}
   for(const p of parts){if(!paused){p.life-=dt;p.x+=p.vx*dt;p.y+=p.vy*dt;p.vy-=(p.g===undefined?1400:p.g)*dt}x.globalAlpha=Math.max(0,p.life/(p.l0||.7));x.fillStyle=p.c;x.fillRect(p.x-cx-p.sz/2,G-p.y-p.sz/2,p.sz,p.sz)}
   x.globalAlpha=1;parts=parts.filter(p=>p.life>0);
   if(practice&&cp&&!E){const lx=cp.P.x-cx;x.fillStyle='#4f6';x.beginPath();x.moveTo(lx+20,G-cp.P.y-62);x.lineTo(lx+32,G-cp.P.y-48);x.lineTo(lx+20,G-cp.P.y-34);x.lineTo(lx+8,G-cp.P.y-48);x.fill()}
-  if(state==='play'||state==='win')drawPlayer(PX,G-P.y-B*P.size);
+  if(state==='play'||state==='win')drawPlayer(P.cam,G-P.y-B*P.size);
   x.restore();
   if(FX&&!E){const vg=x.createRadialGradient(W/2,H/2,H*.45,W/2,H/2,H*.95);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.4)');x.fillStyle=vg;x.fillRect(0,0,W,H)}
   if(flash>0){x.fillStyle=`rgba(255,255,255,${flash})`;x.fillRect(0,0,W,H)}
@@ -657,12 +672,12 @@ const TL=[
   {id:'fill',n:'Rect Block',t:'b',fill:1},{id:'fs',n:'Spike Row',t:'s',fill:1},{id:'tx',n:'Text',t:'tx'}
 ];
 const CATS=[['Tools',['sel','era','fill','fs']],['Blocks',['b','hb','sl']],['Hazards',['s','v','w']],['Pads & Orbs',['p','o','do']],['Portals',['gs','gc','gb','gu','gw','gg','gm','gr']],['Modifiers',['d','sz','tp']],['Decor',['l','k','tx','n']]];
-const ed={data:[],sel:new Set(),tool:'b',rot:0,snap:1,cx:-200,cy:-70,z:1,und:[],red:[],clip:[],drag:null,name:'My Level',spd:1,size:1,tpDist:8,hue:200,mx:0,my:0,wx:0,wy:0,gx:0,gy:0,testing:false,prev:false,hbx:false,skin:0,lvl:2,lastSel:null,lastSnap:0,tk:null,open:{pal:true,insp:true,cinp:false,lvlp:false},hide:false,pv:false,col:null,txt:'TEXT',len:30};
+const ed={data:[],sel:new Set(),tool:'b',snap:1,cx:-200,cy:-70,z:1,und:[],red:[],clip:[],drag:null,name:'My Level',mx:0,my:0,wx:0,wy:0,gx:0,gy:0,testing:false,prev:false,hbx:false,lastCtx:null,lastSnap:0,tk:null,tset:{},open:{pal:true,insp:true,cinp:false,lvlp:false},hide:false,pv:false,len:30};
 const sc=()=>{const r=cv.getBoundingClientRect();return Math.min(r.width/W,r.height/H)};
 function mpos(e){const r=cv.getBoundingClientRect(),s=sc(),X=(e.clientX-r.left-(r.width-W*s)/2)/s,Y=(e.clientY-r.top-(r.height-H*s)/2)/s;
   ed.mx=X;ed.my=Y;ed.wx=X/ed.z+ed.cx;ed.wy=(ed.cy+G-Y)/ed.z;ed.gx=Math.floor(ed.wx/B/ed.snap)*ed.snap;ed.gy=Math.max(0,Math.floor(ed.wy/B/ed.snap)*ed.snap)}
 const snapJ=()=>JSON.stringify({data:ed.data,tl:TLKEYS,meta:META});
-function restore(s){s=JSON.parse(s);ed.data=s.data;TLKEYS=s.tl||[];META=mm(s.meta);ed.sel.clear();ed.tk=null;ed.lastSel=null;syncMeta();autosave();drawTL()}
+function restore(s){s=JSON.parse(s);ed.data=s.data;TLKEYS=s.tl||[];META=mm(s.meta);ed.sel.clear();ed.tk=null;ed.lastCtx=null;syncMeta();autosave();drawTL()}
 function snapshot(){ed.und.push(snapJ());if(ed.und.length>150)ed.und.shift();ed.red=[]}
 function undo(){if(!ed.und.length)return;ed.red.push(snapJ());restore(ed.und.pop())}
 function redo(){if(!ed.red.length)return;ed.und.push(snapJ());restore(ed.red.pop())}
@@ -671,15 +686,14 @@ function saveLevel(){autosave();const a=lvs();a[ed.name]={data:ed.data,tl:TLKEYS
 const at=(wx,wy)=>{const gx=wx/B,gy=wy/B;for(let i=ed.data.length-1;i>=0;i--){const o=ed.data[i];if(gx>=o.x&&gx<o.x+o.w&&gy>=o.y&&gy<o.y+o.h)return o}return null};
 const txw=o=>Math.max(1,Math.ceil((o.s||'').length*o.h*.62));
 function mk(T,gx,gy){
-  const big=['g','d','sz','tp'].includes(T.t),o={t:T.t,x:gx,y:gy,w:1,h:T.hh||(big?3:1),r:'sv'.includes(T.t)?ed.rot:0};
-  if('bsvwksl'.includes(T.t)){o.k=ed.skin;if(ed.col&&T.t!=='l')o.col=ed.col}
-  if(T.t==='p'||T.t==='o'||T.t==='do')o.m=ed.lvl;
+  const S=ts(T),big=['g','d','sz','tp'].includes(T.t),o={t:T.t,x:gx,y:gy,w:1,h:T.hh||(big?3:1),r:['s','v'].includes(T.t)?(S.r|0):0};
+  if(SUP.skin.includes(T.t))o.k=S.k|0;
+  if(SUP.col.includes(T.t)&&S.col)o.col=S.col;
+  if(SUP.dirf.includes(T.t))o.f=S.f||(T.m==='rev'?(ed.data.some(q=>q.t==='g'&&q.m==='rev'&&q.x>gx)?'l':'r'):'b');
   if(T.t==='g')o.m=T.m;
-  if(T.t==='d')o.m=ed.spd;
-  if(T.t==='sz')o.m=ed.size;
-  if(T.t==='tp')o.m=ed.tpDist;
-  if(T.t==='l')o.m=ed.hue;
-  if(T.t==='tx'){o.s=ed.txt;o.h=1;o.w=txw(o);if(ed.col)o.col=ed.col}
+  else if(['p','o','do','d','sz','tp','l'].includes(T.t))o.m=S.m;
+  if(SUP.mv.includes(T.t)&&S.mv&&S.mv.a)o.mv={...S.mv};
+  if(T.t==='tx'){o.s=S.s;o.h=1;o.w=txw(o)}
   return o}
 function place(){
   const T=TL.find(a=>a.id===ed.tool);if(!T||!T.t)return;const gx=ed.gx,gy=ed.gy;
@@ -717,7 +731,7 @@ function editKey(e){
   else if(c&&k==='KeyA'){ed.data.forEach(o=>ed.sel.add(o))}
   else if(c&&k==='KeyS')saveLevel();
   else if(k==='Delete'||k==='Backspace')delSel();
-  else if(k==='KeyR'){if(sel.length){snapshot();sel.forEach(o=>{if('sv'.includes(o.t))o.r=((o.r|0)+1)%4});autosave()}else ed.rot=(ed.rot+1)%4}
+  else if(k==='KeyR'){if(sel.length){snapshot();sel.forEach(o=>{if('sv'.includes(o.t))o.r=((o.r|0)+1)%4});autosave()}else{const T=curTool();if(T&&['s','v'].includes(T.t))ts(T).r=((ts(T).r|0)+1)%4}}
   else if(k==='KeyG'){ed.snap=ed.snap===1?.5:ed.snap===.5?.25:1;$('snapb').textContent='Snap '+ed.snap}
   else if(k==='KeyP'){if(!e.repeat)startTest(e.shiftKey)}
   else if(k==='KeyT'){ed.open.cinp=!ed.open.cinp;show()}
@@ -766,12 +780,7 @@ addEventListener('mouseup',()=>{const d=ed.drag;if(!d)return;
 cv.addEventListener('wheel',e=>{if(state!=='edit')return;e.preventDefault();
   if(e.ctrlKey){ed.z=Math.max(.3,Math.min(2.5,ed.z*(e.deltaY>0?.9:1.1)))}else ed.cx+=(e.deltaY+e.deltaX)*.8/ed.z},{passive:false});
 // ---------- PANELS ----------
-$('palb').innerHTML=CATS.map(([n,ids])=>`<div class="cat">${n}</div><div class="grid">`+ids.map(i=>`<button class="b tb" data-id="${i}">${TL.find(a=>a.id===i).n}</button>`).join('')+'</div>').join('')+
-`<div class="cat">Tool options</div>
-<div class="rw">Speed <select id="spd"><option>0.5</option><option>0.8</option><option selected>1</option><option>1.5</option><option>2</option><option>3</option><option>4</option><option>5</option></select></div>
-<div class="rw">Size <select id="szsel"><option value="1">Normal</option><option value="0.6">Mini</option></select></div>
-<div class="rw">TP dist <input id="tpd" type="number" value="8" min="2" max="40"></div>
-<div class="rw">Light hue <input id="hue" type="range" min="0" max="359" value="200" style="width:90px"></div>`;
+$('palb').innerHTML=CATS.map(([n,ids])=>`<div class="cat">${n}</div><div class="grid">`+ids.map(i=>`<button class="b tb" data-id="${i}">${TL.find(a=>a.id===i).n}</button>`).join('')+'</div>').join('')+'<div style="opacity:.6;font-size:11px;margin-top:6px">Pick a tool or select objects, then edit their own settings in the Inspector.</div>';
 $('palb').onclick=e=>{const b=e.target.closest('.tb');if(b)setTool(b.dataset.id)};
 function dragify(p){const h=p.querySelector('.ph');let d=null;
   h.onmousedown=e=>{if(e.target.closest('.px'))return;const r=p.getBoundingClientRect();d=[e.clientX-r.left,e.clientY-r.top];p.style.right=p.style.bottom='auto';p.style.left=r.left+'px';p.style.top=r.top+'px'};
@@ -782,10 +791,6 @@ document.querySelectorAll('.px').forEach(b=>b.onclick=()=>{ed.open[b.dataset.c]=
 const tgl=(id,p)=>$(id).onclick=()=>{ed.open[p]=!ed.open[p];show()};
 tgl('bCin','cinp');tgl('bLvl','lvlp');tgl('bPal','pal');tgl('bIns','insp');
 $('pv').onchange=e=>ed.pv=e.target.checked;
-$('spd').onchange=e=>{ed.spd=+e.target.value;if(ed.sel.size){snapshot();ed.sel.forEach(o=>{if(o.t==='d')o.m=ed.spd});autosave()}};
-$('szsel').onchange=e=>{ed.size=+e.target.value;if(ed.sel.size){snapshot();ed.sel.forEach(o=>{if(o.t==='sz')o.m=ed.size});autosave()}};
-$('tpd').onchange=e=>{ed.tpDist=+e.target.value||8};
-$('hue').oninput=e=>{ed.hue=+e.target.value;ed.sel.forEach(o=>{if(o.t==='l')o.m=ed.hue})};
 $('snapb').onclick=()=>editKey({code:'KeyG',target:document.body,preventDefault(){}});
 $('undob').onclick=undo;$('redob').onclick=redo;
 $('nm').oninput=e=>{ed.name=e.target.value.trim()||'Untitled'};
@@ -794,19 +799,32 @@ $('testb').onclick=()=>startTest(false);$('testh').onclick=()=>startTest(true);$
 // level settings
 function syncMeta(){$('lmode').value=META.mode;$('lspd').value=String(META.spd);$('lbpm').value=META.bpm;$('lbgs').value=META.bgs}
 [['lmode','mode',v=>v],['lspd','spd',v=>+v],['lbpm','bpm',v=>Math.max(60,Math.min(240,+v||150))],['lbgs','bgs',v=>v]].forEach(([i,k,f])=>$(i).onchange=e=>{snapshot();META[k]=f(e.target.value);autosave()});
-// inspector
+// inspector: every object keeps its OWN settings. With nothing selected the panel edits the active tool's own defaults.
 const MVT=['b','s','v','w','p','o','n','k','sl','do'];
+const SUP={skin:['b','s','v','w','k','sl'],col:['b','s','v','w','k','sl','tx','g','d','sz','tp','p','o','do'],lvl:['p','o','do'],mv:MVT,txt:['tx'],spd:['d'],size:['sz'],tpd:['tp'],hue:['l'],dirf:['g','d','sz','tp'],wh:['b','sl','k','tx']};
+const ROWS={rSkin:'skin',rCol:'col',rTxt:'txt',rLvl:'lvl',rSpd:'spd',rSz:'size',rTp:'tpd',rHue:'hue',rDir:'dirf',rMv:'mv',rWH:'wh'};
 const insp=$('insp');
+const curTool=()=>TL.find(a=>a.id===ed.tool);
+const tdef=T=>({k:0,col:null,s:'TEXT',mv:null,r:0,m:T.t==='d'?2:T.t==='sz'?.6:T.t==='tp'?8:T.t==='l'?200:2});
+const ts=T=>ed.tset[T.id]||(ed.tset[T.id]=tdef(T));
 const snapSoft=()=>{if(Date.now()-ed.lastSnap>700)snapshot();ed.lastSnap=Date.now()};
-const eachSel=f=>{if(!ed.sel.size)return;snapSoft();ed.sel.forEach(f);autosave()};
-const mvSet=(key,val)=>eachSel(o=>{if(!MVT.includes(o.t))return;
-  if(key==='a'){if(val){o.mv=o.mv||{a:val,r:+$('mvr').value,s:+$('mvs').value,p:+$('mvp').value};o.mv.a=val}else delete o.mv}else if(o.mv)o.mv[key]=val});
-const colable=o=>('bsvwksl'.includes(o.t)&&o.t!=='l')||o.t==='tx';
-$('skn').onchange=e=>{ed.skin=+e.target.value;eachSel(o=>{if('bsvwksl'.includes(o.t))o.k=ed.skin})};
-$('ocol').oninput=e=>{ed.col=e.target.value;eachSel(o=>{if(colable(o))o.col=ed.col})};
-$('ocl').onclick=()=>{ed.col=null;eachSel(o=>delete o.col)};
-$('otx').oninput=e=>{ed.txt=e.target.value;eachSel(o=>{if(o.t==='tx'){o.s=ed.txt;o.w=txw(o)}})};
-$('lvl').onchange=e=>{ed.lvl=+e.target.value;eachSel(o=>{if(o.t==='p'||o.t==='o'||o.t==='do')o.m=ed.lvl})};
+function edit(f,fn){
+  if(ed.sel.size){snapSoft();ed.sel.forEach(o=>{if(SUP[f].includes(o.t))fn(o)});autosave()}
+  else{const T=curTool();if(T&&T.t&&SUP[f].includes(T.t))fn(ts(T))}
+}
+const mvSet=(key,val)=>edit('mv',o=>{
+  if(key==='a'){if(val){o.mv=o.mv||{a:val,r:+$('mvr').value,s:+$('mvs').value,p:+$('mvp').value};o.mv.a=val}else delete o.mv}
+  else if(o.mv)o.mv[key]=val});
+$('skn').onchange=e=>edit('skin',o=>o.k=+e.target.value);
+$('ocol').oninput=e=>edit('col',o=>o.col=e.target.value);
+$('ocl').onclick=()=>edit('col',o=>{delete o.col});
+$('otx').oninput=e=>edit('txt',o=>{o.s=e.target.value;if(o.h)o.w=txw(o)});
+$('lvl').onchange=e=>edit('lvl',o=>o.m=+e.target.value);
+$('spd').oninput=e=>{$('spdv').textContent=e.target.value;edit('spd',o=>o.m=+e.target.value)};
+$('szsel').onchange=e=>edit('size',o=>o.m=+e.target.value);
+$('tpd').onchange=e=>edit('tpd',o=>o.m=Math.max(1,Math.min(60,+e.target.value||8)));
+$('hue').oninput=e=>edit('hue',o=>o.m=+e.target.value);
+$('fdir').onchange=e=>edit('dirf',o=>{if(e.target.value)o.f=e.target.value;else delete o.f});
 $('mva').onchange=e=>mvSet('a',+e.target.value);
 [['mvr','r'],['mvs','s'],['mvp','p']].forEach(([i,k])=>$(i).oninput=e=>{$(i+'v').textContent=e.target.value;mvSet(k,+e.target.value)});
 $('mvw').onclick=()=>{const st=+$('mvp').value||.5;snapshot();[...ed.sel].filter(o=>o.mv).sort((a,b)=>a.x-b.x||a.y-b.y).forEach((o,i)=>o.mv.p=+(i*st).toFixed(2));autosave()};
@@ -823,12 +841,30 @@ $('rotb').onclick=()=>fk('KeyR');$('prvb').onclick=()=>fk('KeyN');$('hbxb').oncl
 insp.addEventListener('change',e=>{if(e.target.tagName==='SELECT')e.target.blur()});
 insp.addEventListener('mouseup',e=>{if(e.target.type==='range')e.target.blur()});
 function syncInsp(){
-  const s=[...ed.sel],f=s[0];$('ihd').textContent=s.length?s.length+' selected':'Inspector (new objects)';
-  if(f!==ed.lastSel){ed.lastSel=f;if(f){
-    $('skn').value=f.k|0;if(f.t==='p'||f.t==='o'||f.t==='do')$('lvl').value=f.m||2;const m=f.mv;$('mva').value=m?m.a:0;
-    if(m){$('mvr').value=m.r;$('mvs').value=m.s;$('mvp').value=m.p}['mvr','mvs','mvp'].forEach(i=>$(i+'v').textContent=$(i).value);
-    if(f.col)$('ocol').value=f.col;if(f.t==='tx')$('otx').value=f.s}}
-  if(s.length===1&&!insp.contains(document.activeElement)){$('ix').value=f.x;$('iy').value=f.y;$('iw').value=f.w;$('ih').value=f.h}
+  const sel=[...ed.sel],f=sel[0],T=curTool(),has=sel.length>0;
+  const types=has?[...new Set(sel.map(o=>o.t))]:(T&&T.t?[T.t]:[]);
+  for(const id in ROWS)$(id).style.display=types.some(t=>SUP[ROWS[id]].includes(t))?'flex':'none';
+  $('rXY').style.display=has?'flex':'none';$('rFlip').style.display=has?'flex':'none';
+  if(!has)$('rWH').style.display='none';
+  $('ihd').textContent=has?sel.length+' selected':'New '+(T?T.n:'')+' settings';
+  const key=has?f:ed.tool;
+  if(key!==ed.lastCtx){
+    ed.lastCtx=key;
+    const src=has?f:(T&&T.t?ts(T):null),t=has?f.t:(T&&T.t);
+    if(src){
+      $('skn').value=src.k|0;$('ocol').value=src.col||'#ffffff';$('otx').value=src.s||'TEXT';
+      if(SUP.lvl.includes(t))$('lvl').value=src.m||2;
+      if(t==='d'){$('spd').value=src.m;$('spdv').textContent=src.m}
+      if(t==='sz')$('szsel').value=String(src.m);
+      if(t==='tp')$('tpd').value=src.m;
+      if(t==='l')$('hue').value=src.m;
+      if(SUP.dirf.includes(t))$('fdir').value=has?(src.f||'b'):(src.f||'');
+      const m=src.mv;$('mva').value=m?m.a:0;
+      if(m){$('mvr').value=m.r;$('mvs').value=m.s;$('mvp').value=m.p}
+      ['mvr','mvs','mvp'].forEach(i=>$(i+'v').textContent=$(i).value);
+    }
+  }
+  if(sel.length===1&&!insp.contains(document.activeElement)){$('ix').value=f.x;$('iy').value=f.y;$('iw').value=f.w;$('ih').value=f.h}
 }
 // ---------- TIMELINE UI ----------
 const KIC={bg:'B',gnd:'G',flash:'F',shake:'S',zoom:'Z',tilt:'T',fade:'D',text:'A'};
@@ -873,7 +909,7 @@ $('ktrack').onmousedown=e=>{const el=e.target.closest('.tk');
 addEventListener('mousemove',e=>{if(tdrag)tmove(e)});
 addEventListener('mouseup',()=>{if(tdrag){const was=tdrag.key;tdrag=null;if(was){autosave();drawTL()}}});
 // ---------- MENUS / LEVELS ----------
-function openEditor(data,name,tl,meta){const u=upg(JSON.parse(JSON.stringify(data)),tl);ed.data=u.d;TLKEYS=u.t;META=mm(meta);ed.name=name;$('nm').value=name;ed.und=[];ed.red=[];ed.sel.clear();ed.tk=null;ed.lastSel=null;ed.cx=-200;ed.cy=-70;ed.z=1;state='edit';lvOpen=false;syncMeta();show();drawTL()}
+function openEditor(data,name,tl,meta){const u=upg(JSON.parse(JSON.stringify(data)),tl);ed.data=u.d;TLKEYS=u.t;META=mm(meta);ed.name=name;$('nm').value=name;ed.und=[];ed.red=[];ed.sel.clear();ed.tk=null;ed.lastCtx=null;ed.cx=-200;ed.cy=-70;ed.z=1;state='edit';lvOpen=false;syncMeta();show();drawTL()}
 function playData(d,tl,meta){const u=upg(JSON.parse(JSON.stringify(d)),tl);loadLevel(u.d,u.t,meta);ed.testing=false;attempt=0;lvOpen=false;cp=null;reset(0)}
 function dl(name,data,tl,meta){const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([JSON.stringify({name,data,tl,meta})],{type:'application/json'}));a.download=name+'.gdash.json';a.click()}
 function showLevels(){
@@ -907,7 +943,7 @@ addEventListener('beforeunload',()=>{if(state==='edit')autosave()});
 loadLevel(DEF,DEFTL,{});setTool('b');syncMeta();show();
 function frame(ts){
   const dt=Math.min(.05,(ts-last)/1000||0);last=ts;fc++;
-  if(state==='menu'){P.x=(ts/1000*SPD*.5)%(60*B);P.y=0;P.rot=0;P.mode='cube';P.gr=true;P.size=1;P.dir=1;P.mirror=false}
+  if(state==='menu'){P.cam=PX;P.x=(ts/1000*SPD*.5)%(60*B);P.y=0;P.rot=0;P.mode='cube';P.gr=true;P.size=1;P.dir=1;P.mirror=false}
   acc+=dt;while(acc>=1/240){if(state==='play'&&!paused)step(1/240);acc-=1/240}
   if(state==='play'&&!paused&&fc%2===0)parts.push({x:P.x+(P.mode==='ship'?-10:0),y:P.y+B*P.size/2,vx:-40,vy:0,g:0,life:.3,l0:.3,sz:8*P.size,c:IC1});
   if(state==='dead'){deadT-=dt;if(deadT<=0)reset()}
