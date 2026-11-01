@@ -590,39 +590,100 @@ function sub(dt){
   else P.rot=-Math.atan2(P.vy,S);
 }
 // ---------- AUTOPLAY: AutoStart / AutoStop blocks ----------
-// A breadth-first search over future inputs. It simulates the real physics (with all pads, orbs, portals,
-// moving parts, dual, mirror, teleport...) on a copy of the game and picks the input that survives longest.
+// Improved BFS: longer horizon, better pruning, distance-weighted voting.
 function simStep(dt){const M=P;MAIN=M;sub(dt);if(simDead)return;if(M.d){const D=M.d;D.x=M.x;P=D;sub(dt);P=M}}
 function apSet(h){if(h&&!hold){hold=true;P.bf=.12;if(P.d)P.d.bf=.12}else if(!h)hold=false}
 function apRun(){
-  const sP=P,sM=MAIN,sH=hold,t0=performance.now(),SUB=8,DT=1/240,HZ=24,CAP=28;
+  const sP=P,sM=MAIN,sH=hold,t0=performance.now();
+  const SUB=8,DT=1/240,HZ=36,CAP=40,BUDGET=14;
   SIM=true;J.length=0;
-  const key=(q,h,n)=>[h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,Math.round(q.y/6),Math.round(q.vy/70),q.sp,q.d?Math.round(q.d.y/6):'',q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,n].join('|');
-  let level=[{q:clp(sP),h:sH?1:0,par:null,ch:null,cnt:0,first:-1}],last=level,depth=0,over=false;
+
+  const key=(q,h,n)=>[
+    h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,
+    Math.round(q.y/4),Math.round(q.vy/50),
+    q.sp,q.d?Math.round(q.d.y/4):'',
+    q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,n
+  ].join('|');
+
+  let level=[{q:clp(sP),h:sH?1:0,par:null,ch:null,cnt:0,first:-1,dist:sP.x,steps:0}];
+  let last=level,depth=0,over=false;
+
   while(depth<HZ&&level.length){
     const nx=new Map();
     for(const nd of level){
-      if(performance.now()-t0>9){over=true;break}
-      const chain=[];for(let a=nd;a;a=a.par)if(a.ch)chain.push(a.ch);
-      for(let i=chain.length-1;i>=0;i--){const ch=chain[i];for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2])}
+      if(performance.now()-t0>BUDGET){over=true;break}
+
+      const chain=[];
+      for(let a=nd;a;a=a.par)if(a.ch)chain.push(a.ch);
+      for(let i=chain.length-1;i>=0;i--){
+        const ch=chain[i];
+        for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2]);
+      }
+
       for(const c of(nd.h?[1,0]:[0,1])){
-        const n=clp(nd.q);P=n;MAIN=n;hold=!!c;if(c&&!nd.h){n.bf=.12;if(n.d)n.d.bf=.12}
-        const m=J.length;let ok=true;
-        for(let s=0;s<SUB;s++){simDead=false;simStep(DT);if(simDead){ok=false;break}}
-        if(ok){const ch=[];for(let j=m;j<J.length;j+=3)ch.push(J[j],J[j+1],J[j][J[j+1]]);
-          const nn={q:n,h:c,par:nd,ch:ch.length?ch:null,cnt:nd.cnt+ch.length/3,first:nd.first<0?c:nd.first},k=key(n,c,nn.cnt);if(!nx.has(k))nx.set(k,nn)}
+        const n=clp(nd.q);
+        P=n;MAIN=n;hold=!!c;
+        if(c&&!nd.h){n.bf=.12;if(n.d)n.d.bf=.12}
+
+        const m=J.length;
+        let ok=true;
+        for(let s=0;s<SUB;s++){
+          simDead=false;
+          simStep(DT);
+          if(simDead){ok=false;break}
+        }
+
+        if(ok){
+          const ch=[];
+          for(let j=m;j<J.length;j+=3)
+            ch.push(J[j],J[j+1],J[j][J[j+1]]);
+
+          const nn={
+            q:n,h:c,par:nd,
+            ch:ch.length?ch:null,
+            cnt:nd.cnt+ch.length/3,
+            first:nd.first<0?c:nd.first,
+            dist:n.x,
+            steps:nd.steps+1
+          };
+          const k=key(n,c,nn.cnt);
+          if(!nx.has(k)||nx.get(k).dist<nn.dist)nx.set(k,nn);
+        }
         unwind(m);
       }
       unwind(0);
     }
     if(over||!nx.size)break;
+
     level=[...nx.values()];
-    if(level.length>CAP){level.sort((a,b)=>a.q.y-b.q.y);const k=level.length/CAP;level=Array.from({length:CAP},(_,i)=>level[Math.floor(i*k)])}
-    last=level;depth++;
+    if(level.length>CAP){
+      level.sort((a,b)=>b.dist-a.dist||b.steps-a.steps);
+      level=level.slice(0,CAP);
+    }
+    last=level;
+    depth++;
   }
-  const cnt=[0,0];for(const nd of last)if(nd.first>=0)cnt[nd.first]++;
-  let mv=sH?1:0;if(cnt[1]>cnt[0])mv=1;else if(cnt[0]>cnt[1])mv=0;
-  unwind(0);SIM=false;simDead=false;P=sP;MAIN=sM;hold=sH;AP.bad=depth<HZ&&!over;apSet(mv===1);
+
+  const score=[0,0];
+  let bestDist=-1;
+  for(const nd of last){
+    if(nd.first<0)continue;
+    const w=1+(nd.dist-sP.x)*0.01;
+    score[nd.first]+=w;
+    if(nd.dist>bestDist)bestDist=nd.dist;
+  }
+
+  let mv=sH?1:0;
+  if(score[1]>score[0]*1.05)mv=1;
+  else if(score[0]>score[1]*1.05)mv=0;
+
+  const progress=bestDist-sP.x;
+  AP.bad=(depth<12&&!over)||progress<80;
+
+  unwind(0);
+  SIM=false;simDead=false;
+  P=sP;MAIN=sM;hold=sH;
+  apSet(mv===1);
 }
 // ---------- render ----------
 let neonE='#8cf';
