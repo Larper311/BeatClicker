@@ -589,23 +589,19 @@ function sub(dt){
   else if(P.mode==='wave')P.rot=(hold?-1:1)*(P.gr?1:-1)*-Math.PI/4;
   else P.rot=-Math.atan2(P.vy,S);
 }
-// ---------- AUTOPLAY: AutoStart / AutoStop blocks ----------
-// Improved BFS: longer horizon, better pruning, distance-weighted voting.
-function simStep(dt){const M=P;MAIN=M;sub(dt);if(simDead)return;if(M.d){const D=M.d;D.x=M.x;P=D;sub(dt);P=M}}
-function apSet(h){if(h&&!hold){hold=true;P.bf=.12;if(P.d)P.d.bf=.12}else if(!h)hold=false}
 function apRun(){
   const sP=P,sM=MAIN,sH=hold,t0=performance.now();
-  const SUB=8,DT=1/240,HZ=36,CAP=40,BUDGET=14;
+  const SUB=8,DT=1/240,HZ=28,CAP=32,BUDGET=11;
   SIM=true;J.length=0;
 
   const key=(q,h,n)=>[
     h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,
-    Math.round(q.y/4),Math.round(q.vy/50),
-    q.sp,q.d?Math.round(q.d.y/4):'',
+    Math.round(q.y/5),Math.round(q.vy/60),
+    q.sp,q.d?Math.round(q.d.y/5):'',
     q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,n
   ].join('|');
 
-  let level=[{q:clp(sP),h:sH?1:0,par:null,ch:null,cnt:0,first:-1,dist:sP.x,steps:0}];
+  let level=[{q:clp(sP),h:sH?1:0,par:null,ch:null,cnt:0,first:-1,dist:sP.x}];
   let last=level,depth=0,over=false;
 
   while(depth<HZ&&level.length){
@@ -620,6 +616,7 @@ function apRun(){
         for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2]);
       }
 
+      // Prefer keeping the current hold first (more stable)
       for(const c of(nd.h?[1,0]:[0,1])){
         const n=clp(nd.q);
         P=n;MAIN=n;hold=!!c;
@@ -643,8 +640,7 @@ function apRun(){
             ch:ch.length?ch:null,
             cnt:nd.cnt+ch.length/3,
             first:nd.first<0?c:nd.first,
-            dist:n.x,
-            steps:nd.steps+1
+            dist:n.x
           };
           const k=key(n,c,nn.cnt);
           if(!nx.has(k)||nx.get(k).dist<nn.dist)nx.set(k,nn);
@@ -657,28 +653,23 @@ function apRun(){
 
     level=[...nx.values()];
     if(level.length>CAP){
-      level.sort((a,b)=>b.dist-a.dist||b.steps-a.steps);
-      level=level.slice(0,CAP);
+      // Keep a mix: prefer further progress but don't only take the highest ones
+      level.sort((a,b)=>b.dist-a.dist);
+      const step=level.length/CAP;
+      level=Array.from({length:CAP},(_,i)=>level[Math.min(level.length-1,Math.floor(i*step))]);
     }
     last=level;
     depth++;
   }
 
-  const score=[0,0];
-  let bestDist=-1;
-  for(const nd of last){
-    if(nd.first<0)continue;
-    const w=1+(nd.dist-sP.x)*0.01;
-    score[nd.first]+=w;
-    if(nd.dist>bestDist)bestDist=nd.dist;
-  }
-
+  // Simple majority vote (like original) with light hysteresis
+  const cnt=[0,0];
+  for(const nd of last)if(nd.first>=0)cnt[nd.first]++;
   let mv=sH?1:0;
-  if(score[1]>score[0]*1.05)mv=1;
-  else if(score[0]>score[1]*1.05)mv=0;
+  if(cnt[1]>cnt[0]+1)mv=1;
+  else if(cnt[0]>cnt[1]+1)mv=0;
 
-  const progress=bestDist-sP.x;
-  AP.bad=(depth<12&&!over)||progress<80;
+  AP.bad=depth<10&&!over;
 
   unwind(0);
   SIM=false;simDead=false;
