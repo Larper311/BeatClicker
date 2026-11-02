@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Geometrical Dash 2 - Andromeda Update</title>
+<html><head><meta charset="utf-8"><title>Geometrical Dash 2 - Arachnid Update</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;font-family:Arial,sans-serif;color:#fff}
@@ -19,6 +19,7 @@ input[type=number]{width:52px}
 .card:hover{background:#12304a;transform:translateY(-3px)}
 .card.dk{background:#15161a;border-color:#8b909c}.card.dk:hover{background:#26282e}
 .card.and{background:#1a0a2a;border-color:#c6f}.card.and:hover{background:#2a1a3a}
+.card.spd{background:#0a2a14;border-color:#6f6}.card.spd:hover{background:#12401f}
 .card h3{margin:0 0 6px;font-size:20px}
 .bar{height:8px;background:#234;border-radius:4px;margin:6px 0;overflow:hidden}.bar i{display:block;height:100%;background:#4f6}
 .row{display:flex;gap:6px;align-items:center;background:#0a1a2a;border:1px solid #6cf;padding:6px 10px;border-radius:6px;min-width:520px}
@@ -36,7 +37,7 @@ input[type=number]{width:52px}
 </style></head><body>
 <canvas id="c" width="1280" height="720"></canvas>
 
-<div id="menu" class="ov"><h1>GEOMETRICAL DASH 2</h1><div class="sub">ANDROMEDA UPDATE</div>
+<div id="menu" class="ov"><h1>GEOMETRICAL DASH 2</h1><div class="sub">ARACHNID UPDATE</div>
 <div id="cards" class="rw" style="gap:14px"></div>
 <button class="b big" id="mEdit">Level Editor (new)</button>
 <button class="b big" id="mCont">Continue editing</button>
@@ -48,8 +49,8 @@ input[type=number]{width:52px}
 <select id="icW"><option value="0">Wave: Arrow</option><option value="1">Wave: Dart</option><option value="2">Wave: Blade</option><option value="3">Wave: Shard</option></select>
 <select id="icG"><option value="0">Flat</option><option value="1">Gradient</option><option value="2">Chrome</option></select>
 <select id="icT"><option value="0">Trail: Puffs</option><option value="1">Trail: Ribbon</option><option value="2">Trail: Sparks</option><option value="3">Trail: None</option></select></div>
-<canvas id="prev" width="360" height="72"></canvas>
-<div style="font-size:13px;opacity:.85;text-align:center">Space / Click / Up = jump (hold) &nbsp; P = pause &nbsp; H = hitboxes &nbsp; M = mute &nbsp; Esc = back<br>Practice: Z = checkpoint, X = remove (auto checkpoints too)<br>Portals: gravity (blue / yellow / green) · mirror · mini · 5 speeds · dual · teleport<br>Editor test tools: AutoStart / AutoStop blocks make the game play itself through that section</div></div>
+<canvas id="prev" width="440" height="72"></canvas>
+<div style="font-size:13px;opacity:.85;text-align:center">Space / Click / Up = jump (hold) &nbsp; P = pause &nbsp; H = hitboxes (+ autoplay plan) &nbsp; M = mute &nbsp; Esc = back<br>Practice: Z = checkpoint, X = remove (auto checkpoints too)<br>Portals: gravity (blue / yellow / green) · mirror · mini · 5 speeds · dual · teleport · <b style="color:#8f8">spider</b><br>Spider: tap = instantly teleport to the opposite surface (floor / ceiling / underside of a block)<br>Editor test tools: AutoStart / AutoStop blocks make the game play itself through that section (it plans ahead and re-plans when needed)</div></div>
 <div id="lv" class="ov"></div>
 
 <div id="top">
@@ -68,7 +69,7 @@ Trig val<input type="number" id="tv" value="1" step=".1" title="Trigger value: f
 Dur<input type="number" id="td" value="0" min="0" max="30" step=".1" title="Trigger duration / fade time in seconds (0 = default)">
 Pat<select id="tpat"></select>
 Text<input type="text" id="ttxt" value="Hello!" style="width:70px;padding:3px"><i></i>
-Start<select id="lmode"><option>cube</option><option>ship</option><option>ball</option><option>ufo</option><option>wave</option></select>
+Start<select id="lmode"><option>cube</option><option>ship</option><option>ball</option><option>ufo</option><option>wave</option><option>spider</option></select>
 x<select id="lspd"><option value="0.81">0.8</option><option value="1" selected>1</option><option value="1.24">1.24</option><option value="1.5">1.5</option><option value="1.85">1.85</option></select>
 BPM<input type="number" id="lbpm" value="150" min="60" max="240">
 <button class="b" id="rpb">Look / Decor panel</button>
@@ -118,7 +119,7 @@ BPM<input type="number" id="lbpm" value="150" min="60" max="240">
 const $=i=>document.getElementById(i),cv=$('c');let x=cv.getContext('2d');
 const W=1280,H=720,G=600,B=40,SPD=416,GR=5500,JV=960,CEIL=360,PX=300,FY=500;
 const PV=[1100,1450,1900],OJ=[720,960,1250],PC=['#f6c','#ff0','#f44'];
-const TRIG=new Set(['g','sp','mi','sz','dl','tp']),PORT=new Set([...TRIG,'tx']),MODES=['ship','cube','ball','ufo','wave'];
+const TRIG=new Set(['g','sp','mi','sz','dl','tp']),PORT=new Set([...TRIG,'tx']),MODES=['ship','cube','ball','ufo','wave','spider'];
 const CAMZ=[1,1.2,1.35,1.6],CAMN=['Far','Normal','Close','Closer'];
 // ---------- storage + color helpers ----------
 const mem={},ls={get:k=>{try{return localStorage.getItem(k)}catch(e){return mem[k]||null}},set:(k,v)=>{try{localStorage.setItem(k,v)}catch(e){mem[k]=v}}};
@@ -147,7 +148,8 @@ const LV=[
  {n:'Hyper Void',dif:'Harder',seed:33,hue:0,bpm:165,bgs:'stars',sec:[['cube',7,1.5],['wave',18,1],['cube',7,1.5],['ball',6,1.5],['ship',18,1],['wave',14,1.5],['cube',8,1.5]]},
  {n:'Portal Palace',dif:'Hard',hue:170,bpm:160,bgs:'tri',sec:[['cube'],['gravity'],['mirror'],['mini'],['speed'],['dual'],['teleport']],build:genP},
  {n:'darkex',dif:'Insane',bg:'#2b2d33',hue:0,bpm:170,bgs:'none',look:'dark',beams:.7,ash:.8,chroma:.5,sec:[['cube'],['ship'],['ball'],['mini wave'],['mirror'],['ufo'],['gravity'],['dual'],['teleport']],build:genDark},
- {n:'Andromeda',dif:'Extreme',bg:'#0a0618',hue:270,bpm:175,bgs:'galaxy',look:'galaxy',beams:.9,ash:.6,chroma:.7,sec:[['cube'],['ship'],['wave'],['ball'],['mini'],['ufo'],['gravity'],['dual'],['teleport'],['final']],build:genAndromeda}];
+ {n:'Andromeda',dif:'Extreme',bg:'#0a0618',hue:270,bpm:175,bgs:'galaxy',look:'galaxy',beams:.9,ash:.6,chroma:.7,sec:[['cube'],['ship'],['wave'],['ball'],['mini'],['ufo'],['gravity'],['dual'],['teleport'],['final']],build:genAndromeda},
+ {n:'Arachnid',dif:'Harder',bg:'#06180e',hue:140,bpm:168,bgs:'hex',look:'neon',beams:.3,ash:.2,sec:[['cube'],['spider'],['pillars'],['mini spider'],['speed'],['gravity']],build:genSpider}];
 const lvMeta=l=>({bpm:l.bpm,bgs:l.bgs,bg:l.bg||h2x(l.hue),look:l.look||'none',beams:l.beams||0,ash:l.ash||0,chroma:l.chroma||0});
 const DIFC={Normal:'#6f6',Hard:'#fc4',Harder:'#f94',Insane:'#f55',Extreme:'#c6f'};
 function gen(D){
@@ -356,6 +358,44 @@ function genAndromeda(){
   }
   return d;
 }
+// Level 7: Arachnid - the spider level. Every tap teleports to the opposite surface, so hazards sit on the side you are on.
+function genSpider(){
+  const R=rnd(404),d=[],A=o=>d.push({w:1,h:1,r:0,...o});let c=16,sp=1,hue=140,coins=0,top=false;
+  const S=(a,y=0,r=0)=>A({t:'s',x:a,y,r}),Bk=(a,y,w,h)=>A({t:'b',x:a,y,w,h}),
+    port=(t,m,a,y=0,h=3)=>A({t,m,x:a,y,h}),
+    bgc=a=>{hue=(hue+40)%360;A({t:'tr',m:'bg',x:a,y:0,c:h2x(hue)});A({t:'tr',m:'flash',x:a+1,y:0})},
+    coin=(a,y)=>{if(coins<3){A({t:'n',x:a,y});coins++}},
+    gap=n=>Math.round(n*sp),
+    setSp=v=>{if(v!==sp){port('sp',v,c);c+=5;sp=v}};
+  const cubeRun=n=>{for(let i=0;i<n;i++){S(c);if(R()<.4)S(c+1);c+=gap(6)+(R()*2|0)}};
+  // one hazard on the side the spider is currently on, then it has to teleport to the other side
+  const spRun=(n,pil)=>{for(let i=0;i<n;i++){
+    const a=c,yy=top?8:0,rr=top?2:0,k=R();let w=2;
+    if(pil&&k<.3){Bk(a,top?6:0,2,3);w=2}
+    else if(k<.5){S(a,yy,rr)}
+    else if(k<.72){S(a,yy,rr);S(a+1,yy,rr);w=2}
+    else if(k<.88){A({t:'w',x:a,y:yy})}
+    else{S(a,yy,rr);S(a+1,yy,rr);S(a+2,yy,rr);w=3}
+    if(i===(n>>1)&&coins<3)coin(a+w+1,top?6:2);
+    top=!top;c+=gap(w+4)+(R()*2|0)}};
+  bgc(c);c+=8;coin(c,2.2);cubeRun(4);c+=2;
+  bgc(c);port('g','spider',c);c+=8;spRun(8,false);
+  bgc(c);spRun(8,true);
+  bgc(c);setSp(1.24);spRun(10,true);
+  bgc(c);port('sz','mini',c);c+=6;spRun(8,true);port('sz','norm',c);c+=6;
+  bgc(c);setSp(1.5);spRun(8,true);
+  if(top){port('g','gdn',c,6);c+=3;top=false}
+  c+=2;setSp(1);port('g','cube',c);c+=8;cubeRun(3);c+=4;
+  const end=c+8;
+  const D=(k,px,py,o)=>d.push({t:'dc',k,x:px,y:py,w:1,h:1,r:0,...o}),gr=()=>['#2f9a4a','#44c060','#1f7a3a','#6fe08a'][R()*4|0];
+  for(let p=0;p<end;p+=7+R()*4){
+    D('web',p+1,6.5,{s:1.6+R()*1.4,a:.3,z:-1,c:gr()});
+    D('ln',p+1,8.6,{sw:.4,sh:1.8,a:.35,z:-1,c:'#9fe0b0'});
+    if(R()<.7)D('hex',p+3+R()*3,1+R()*6,{s:.6+R()*.8,a:.18,z:-2,rot:R()*60,sp:.3*(R()<.5?1:-1),c:gr()});
+  }
+  for(let p=3;p<end;p+=11+R()*5)D('eye',p,5.5,{s:1.8,a:.4,z:-1,c:'#9fffb0',pu:1});
+  return d;
+}
 const GEN=LV.map(l=>l.build?l.build():gen(l));
 // ---------- compile ----------
 let L=[],DEC=[],END=100,COINS=0,maxW=0,maxAm=0;
@@ -385,7 +425,7 @@ let state='menu',hold=false,paused=false,attempt=0,best=0,deadT=0,flash=0,shake=
 const clp=p=>({...p,d:p.d?{...p.d}:null});
 // runtime effect state, autoplay, simulation
 let FXS={},flashC='#ffffff',flashR=1.5,apEn=ls.get('gd2_ap')!=='0',apUsed=false,SIM=false,simDead=false;
-const J=[],AP={on:false,bad:false,acc:1};
+const J=[],AP={on:false,bad:false,acc:1,plan:[]};
 function setf(o,k,v){if(SIM)J.push(o,k,o[k]);o[k]=v}
 function unwind(m){while(J.length>m){const v=J.pop(),k=J.pop(),o=J.pop();o[k]=v}}
 const camT=()=>{let y=P.y||0;if(P.d)y=(y+P.d.y)/2;return Math.max(0,Math.min(170,y*.65))};
@@ -405,7 +445,7 @@ function fxTick(dt){const F=FXS;if(!F.tg)return;
   if(F.txt){F.txt.t+=dt;if(F.txt.t>=F.txt.dur)F.txt=null}}
 function reset(sx=0){
   startX=sx;P=newP(sx);MAIN=P;TR=[[],[]];rings=[];
-  bg=bgT=META.bg;zm=zmT=1;fxInit();AP.on=false;AP.bad=false;AP.acc=1;apUsed=false;
+  bg=bgT=META.bg;zm=zmT=1;fxInit();AP.on=false;AP.bad=false;AP.acc=1;AP.plan=[];apUsed=false;
   L.forEach(o=>{o.used=false;o.u2=false;o.side=undefined;
     if(o.x<sx){if(TRIG.has(o.t)){if(o.t!=='tp')pAct(o);o.used=true}else if(o.t==='tr'){fire(o,true);o.used=true}else if(o.t==='as'||o.t==='ae'){o.used=true;AP.on=o.t==='as'}}});
   if(practice&&cp){P=clp(cp.P);MAIN=P;L.forEach((o,i)=>{o.used=cp.u[i][0];o.u2=cp.u[i][1]});bgT=cp.bg;bg=cp.bg;zmT=zm=cp.zm;if(cp.fx)FXS=JSON.parse(JSON.stringify(cp.fx));AP.on=!!cp.ap}
@@ -415,7 +455,7 @@ function reset(sx=0){
 function pAct(o){
   const t=o.t,m=o.m,D=P.d,both=f=>{f(P);if(D)f(D)};
   if(t==='g'){
-    if(MODES.includes(m))both(p=>{p.mode=m;if(m==='ball'||m==='cube')p.rot=Math.round(p.rot/(Math.PI/2))*Math.PI/2});
+    if(MODES.includes(m))both(p=>{p.mode=m;if(m==='ball'||m==='cube')p.rot=Math.round(p.rot/(Math.PI/2))*Math.PI/2;if(m==='spider')p.rot=0});
     else if(m==='grav')both(p=>{p.gr=!p.gr;p.vy*=-.4});
     else{const g=m!=='gru',f=(p,v)=>{if(p.gr!==v){p.gr=v;p.vy*=-.4}};f(P,g);if(D)f(D,!g)}
   }else if(t==='sp')both(p=>{p.sp=+m||1});
@@ -502,6 +542,18 @@ const ov=(ax,ay,aw,ah,bx,by,bw,bh)=>ax<bx+bw&&ax+aw>bx&&ay<by+bh&&ay+ah>by;
 function off(o,t){const m=o.mv;if(!m||!m.a)return[0,0];const a=m.s*t+(m.p||0),r=m.r*B;
   return m.a===1?[0,Math.sin(a)*r]:m.a===2?[Math.sin(a)*r,0]:[Math.cos(a)*r,Math.sin(a)*r]}
 function pCol(o){return portalInfo(o)[0]}
+// Spider: find where the instant teleport lands. Sweeps toward the opposite surface and stops just before the first solid block.
+function spTarget(q,mt){
+  const sz=q.mini?.6:1,hh=B*sz,hw=B*.85*sz,hx=q.x+(B-hw)/2,up=q.gr;let y=q.y;
+  for(let i=0;i<240;i++){
+    const ny=y+(up?6:-6);
+    if(up&&ny+hh>=CEIL)return CEIL-hh;
+    if(!up&&ny<=0)return 0;
+    for(let li=lbi(q.x-maxW-maxAm-60);li<L.length;li++){const o=L[li];if(o.x>q.x+60+maxAm)break;
+      if(o.t!=='b')continue;const[mx,my]=off(o,mt);
+      if(ov(hx,ny,hw,hh,o.x+mx,o.y+my,o.w,o.h))return y}
+    y=ny}
+  return y}
 function step(dt){
   const M=P;MAIN=M;
   sub(dt);
@@ -511,13 +563,20 @@ function step(dt){
   if(practice){pchk+=dt;if(pchk>3&&M.coy>.05){pchk=0;saveCp()}}
 }
 function sub(dt){
-  const oy=P.y,pvy=P.vy,dash=P.dash>0,S=SPD*P.sp*(dash?2.2:1),sz=P.mini?.6:1,hitW=B*.85*sz,hitH=B*sz,dual=!!(P.id||P.d),uk=P.id?'u2':'used';
+  let oy=P.y;const pvy=P.vy,dash=P.dash>0,S=SPD*P.sp*(dash?2.2:1),sz=P.mini?.6:1,hitW=B*.85*sz,hitH=B*sz,dual=!!(P.id||P.d),uk=P.id?'u2':'used';
   if(!P.id)P.x+=S*dt;
   const mt=P.x/SPD;
   P.coy=Math.max(0,P.coy-dt);P.dash=Math.max(0,P.dash-dt);P.bf=Math.max(0,P.bf-dt);
   if(P.mode==='ball'&&P.bf>0&&P.coy>0){P.gr=!P.gr;P.vy=0;P.coy=0;P.bf=0;sfx(420,.08,.1);ring(P.x+20,P.y+hitH/2,'#fff',24,.3)}
+  if(P.mode==='spider'&&P.bf>0&&P.coy>0){
+    const ty=spTarget(P,mt),y0=P.y;
+    if(Math.abs(ty-y0)>B*.4){
+      if(!SIM){const col=P.id?IC.b:IC.a;for(let k=0;k<12;k++)parts.push({x:P.x+20,y:y0+(ty-y0)*k/11+hitH/2,vx:-70,vy:0,g:0,life:.35,l0:.35,sz:hitH*.5*(1-k/16),c:col})}
+      P.y=ty;oy=ty;P.gr=!P.gr;P.vy=0;P.coy=0;P.bf=0;sfx(780,.1,.12);ring(P.x+20,P.y+hitH/2,'#8f8',30,.3);
+    }
+  }
   const gd=P.gr?1:-1;
-  if(P.mode==='cube'||P.mode==='ball'){
+  if(P.mode==='cube'||P.mode==='ball'||P.mode==='spider'){
     if(P.mode==='cube'&&P.coy>0&&(hold||P.bf>0)){P.vy=JV*gd;P.coy=0;P.bf=0;if(!P.id)ring(P.x+20,P.y+(P.gr?0:hitH),'#fff',22,.3)}
     P.vy-=GR*dt*gd;if(Math.abs(P.vy)>1500)P.vy=Math.sign(P.vy)*1500;
   }else if(P.mode==='ship'){
@@ -576,7 +635,7 @@ function sub(dt){
     }else if(o.t==='tr'){
       if(!o.used&&P.x+B/2>=o.x){setf(o,'used',true);fire(o)}
     }else if(o.t==='as'||o.t==='ae'){
-      if(!o.used&&P.x+B/2>=o.x){setf(o,'used',true);if(!SIM){AP.on=o.t==='as';AP.acc=1;if(!AP.on)hold=false}}
+      if(!o.used&&P.x+B/2>=o.x){setf(o,'used',true);if(!SIM){AP.on=o.t==='as';AP.acc=1;AP.plan=[];if(!AP.on)hold=false}}
     }
   }
   if(gr)P.coy=.07;
@@ -587,94 +646,67 @@ function sub(dt){
     if(!gr)P.rot+=8.6*dt*(P.gr?1:-1);else P.rot+=(Math.round(P.rot/(Math.PI/2))*Math.PI/2-P.rot)*Math.min(1,dt*30);
   }else if(P.mode==='ball')P.rot+=S*dt/20*(P.gr?1:-1);
   else if(P.mode==='wave')P.rot=(hold?-1:1)*(P.gr?1:-1)*-Math.PI/4;
+  else if(P.mode==='spider')P.rot=0;
   else P.rot=-Math.atan2(P.vy,S);
 }
+// ---------- autoplay ----------
+// The old autoplay called simStep/apSet which did not exist and searched only ~0.9s ahead from scratch every tick.
+// New approach: keep a PLAN (a list of hold/release decisions, one per 1/30s). Every tick the plan is re-validated against the
+// real game state with the exact same physics; only if it fails (or gets short) a beam search runs, starting a little BEFORE
+// the failure point so it can change earlier decisions. Search prefers fewer input changes (smooth, human-like play).
+function simStep(dt){const M=P;MAIN=M;sub(dt);if(simDead)return;if(M.d){const D=M.d;D.x=M.x;P=D;sub(dt);P=M}}
+function simAct(q,c,pv){
+  P=q;MAIN=q;hold=!!c;if(c&&!pv){q.bf=.12;if(q.d)q.d.bf=.12}
+  for(let s=0;s<8;s++){simDead=false;simStep(1/240);if(simDead)return false}
+  return true}
+function apSet(h){if(h){if(!hold){hold=true;P.bf=.12;if(P.d)P.d.bf=.12}}else hold=false}
+function apKey(q,h,n){return[h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,Math.round(q.y/4),Math.round(q.vy/50),q.sp,q.d?Math.round(q.d.y/4)+'/'+Math.round(q.d.vy/50):'',q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,n].join('|')}
 function apRun(){
-  const sP=P,sM=MAIN,sH=hold,t0=performance.now();
-  const SUB=8,DT=1/240,HZ=28,CAP=32,BUDGET=11;
+  const sP=P,sM=MAIN,sH=hold,t0=performance.now(),HZ=60,KEEP=36,CAP=44,BUDGET=12,BACK=15;
   SIM=true;J.length=0;
-
-  const key=(q,h,n)=>[
-    h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,
-    Math.round(q.y/5),Math.round(q.vy/60),
-    q.sp,q.d?Math.round(q.d.y/5):'',
-    q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,n
-  ].join('|');
-
-  let level=[{q:clp(sP),h:sH?1:0,par:null,ch:null,cnt:0,first:-1,dist:sP.x}];
-  let last=level,depth=0,over=false;
-
-  while(depth<HZ&&level.length){
-    const nx=new Map();
-    for(const nd of level){
-      if(performance.now()-t0>BUDGET){over=true;break}
-
-      const chain=[];
-      for(let a=nd;a;a=a.par)if(a.ch)chain.push(a.ch);
-      for(let i=chain.length-1;i>=0;i--){
-        const ch=chain[i];
-        for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2]);
-      }
-
-      // Prefer keeping the current hold first (more stable)
-      for(const c of(nd.h?[1,0]:[0,1])){
-        const n=clp(nd.q);
-        P=n;MAIN=n;hold=!!c;
-        if(c&&!nd.h){n.bf=.12;if(n.d)n.d.bf=.12}
-
-        const m=J.length;
-        let ok=true;
-        for(let s=0;s<SUB;s++){
-          simDead=false;
-          simStep(DT);
-          if(simDead){ok=false;break}
+  let plan=(AP.plan||[]).slice(1),q=clp(sP),prev=sH?1:0;const sn=[],jm=[],pv=[];let fail=-1;
+  // 1) re-validate the existing plan on the real state
+  for(let i=0;i<plan.length;i++){sn.push(clp(q));jm.push(J.length);pv.push(prev);if(!simAct(q,plan[i],prev)){fail=i;break}prev=plan[i]}
+  let s;
+  if(fail<0){sn.push(q);jm.push(J.length);pv.push(prev);s=plan.length}else s=Math.max(0,fail-BACK);
+  let depth=0,over=false;
+  // 2) plan broken or too short: beam search from (a bit before) the break point
+  if(fail>=0||plan.length<KEEP){
+    unwind(jm[s]);const base=J.length;
+    let level=[{q:sn[s],h:pv[s],par:null,ch:null,c:-1,cnt:0,dist:sn[s].x}],last=level;
+    while(s+depth<HZ&&level.length){
+      const nx=new Map();
+      for(const nd of level){
+        if(performance.now()-t0>BUDGET){over=true;break}
+        const chain=[];for(let a=nd;a;a=a.par)if(a.ch)chain.push(a.ch);
+        for(let i=chain.length-1;i>=0;i--){const ch=chain[i];for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2])}
+        for(const c of(nd.h?[1,0]:[0,1])){
+          const n=clp(nd.q),m=J.length;
+          if(simAct(n,c,nd.h)){
+            const ch=[];for(let j=m;j<J.length;j+=3)ch.push(J[j],J[j+1],J[j][J[j+1]]);
+            const nn={q:n,h:c,c,par:nd,ch:ch.length?ch:null,cnt:nd.cnt+ch.length/3,dist:n.x},k=apKey(n,c,nn.cnt),o=nx.get(k);
+            if(!o||o.dist<nn.dist)nx.set(k,nn);
+          }
+          unwind(m);
         }
-
-        if(ok){
-          const ch=[];
-          for(let j=m;j<J.length;j+=3)
-            ch.push(J[j],J[j+1],J[j][J[j+1]]);
-
-          const nn={
-            q:n,h:c,par:nd,
-            ch:ch.length?ch:null,
-            cnt:nd.cnt+ch.length/3,
-            first:nd.first<0?c:nd.first,
-            dist:n.x
-          };
-          const k=key(n,c,nn.cnt);
-          if(!nx.has(k)||nx.get(k).dist<nn.dist)nx.set(k,nn);
-        }
-        unwind(m);
+        unwind(base);
       }
-      unwind(0);
+      if(over||!nx.size)break;
+      level=[...nx.values()];
+      if(level.length>CAP){level.sort((a,b)=>b.dist-a.dist);const st=level.length/CAP;level=Array.from({length:CAP},(_,i)=>level[Math.floor(i*st)])}
+      last=level;depth++;
     }
-    if(over||!nx.size)break;
-
-    level=[...nx.values()];
-    if(level.length>CAP){
-      // Keep a mix: prefer further progress but don't only take the highest ones
-      level.sort((a,b)=>b.dist-a.dist);
-      const step=level.length/CAP;
-      level=Array.from({length:CAP},(_,i)=>level[Math.min(level.length-1,Math.floor(i*step))]);
-    }
-    last=level;
-    depth++;
+    // pick the survivor with the fewest input changes (smooth play), lightly preferring to keep the previous input
+    let bs=-1e9,bp=[];
+    for(const nd of last){let sw=0;const pth=[];for(let a=nd;a.par;a=a.par){pth.push(a.c);if(a.par.par&&a.par.c!==a.c)sw++}
+      pth.reverse();const sc=-sw*100-(pth.length&&pth[0]!==pv[s]?25:0)+nd.dist*.001;if(sc>bs){bs=sc;bp=pth}}
+    plan=plan.slice(0,s).concat(bp);
   }
-
-  // Simple majority vote (like original) with light hysteresis
-  const cnt=[0,0];
-  for(const nd of last)if(nd.first>=0)cnt[nd.first]++;
-  let mv=sH?1:0;
-  if(cnt[1]>cnt[0]+1)mv=1;
-  else if(cnt[0]>cnt[1]+1)mv=0;
-
-  AP.bad=depth<10&&!over;
-
-  unwind(0);
-  SIM=false;simDead=false;
+  AP.bad=plan.length<18&&!over;
+  unwind(0);SIM=false;simDead=false;
   P=sP;MAIN=sM;hold=sH;
-  apSet(mv===1);
+  AP.plan=plan;
+  apSet(plan.length?!!plan[0]:!!sH);
 }
 // ---------- render ----------
 let neonE='#8cf';
@@ -693,7 +725,7 @@ function tile(tx,ty,w,h,o,t){
   else{x.strokeStyle=e;x.lineWidth=2;x.strokeRect(tx+1,ty+1,w-2,h-2)}
   x.strokeStyle='rgba(255,255,255,.15)';x.strokeRect(tx+6,ty+6,w-12,h-12);
 }
-const PCOL={ship:'#f6c',ball:'#4f8',ufo:'#8f4',wave:'#f84',cube:'#5af',gdn:'#4af',gru:'#fd2',grav:'#4f6'};
+const PCOL={ship:'#f6c',ball:'#4f8',ufo:'#8f4',wave:'#f84',cube:'#5af',spider:'#a4f',gdn:'#4af',gru:'#fd2',grav:'#4f6'};
 function portalInfo(o){
   switch(o.t){
     case 'g':return[PCOL[o.m]||'#5f8',{gdn:'↓',gru:'↑',grav:'↕'}[o.m]||(o.m||'').toUpperCase().slice(0,4)];
@@ -789,6 +821,11 @@ function drawDecor(o,sx,by,t,E){
     x.closePath();x.fill();
     x.strokeStyle=ec;x.stroke();
     x.fillStyle=shade(c,.5);x.beginPath();x.arc(0,0,4,0,6.283);x.fill();
+  }else if(k==='web'){
+    x.strokeStyle=c;x.lineWidth=lw*1.5;x.beginPath();
+    for(let i=0;i<8;i++){const a=i*Math.PI/4;x.moveTo(0,0);x.lineTo(Math.cos(a)*22,Math.sin(a)*22)}
+    for(let r=6;r<=22;r+=8){x.moveTo(r,0);for(let i=1;i<=8;i++){const a=i*Math.PI/4,m=a-Math.PI/8;x.quadraticCurveTo(Math.cos(m)*r*.78,Math.sin(m)*r*.78,Math.cos(a)*r,Math.sin(a)*r)}}
+    x.stroke();
   }
   x.shadowBlur=0;
   if(E&&o.src&&ed.sel.has(o.src)){x.globalCompositeOperation='source-over';x.globalAlpha=1;x.strokeStyle='#ff0';x.lineWidth=lw*1.6;x.setLineDash([lw*5,lw*4]);x.strokeRect(-23,-23,46,46);x.setLineDash([])}
@@ -1002,6 +1039,7 @@ function draw(dt){
     x.fillStyle='#fff';x.font='bold 22px Arial';x.textAlign='left';x.fillText(pc+'%',950,35);
     if(testing){x.font='16px Arial';x.fillText('TESTING - Esc to return to editor',20,30)}
     if(AP.on&&apEn){x.fillStyle=AP.bad?'#f66':'#fa3';x.font='bold 18px Arial';x.fillText(AP.bad?'AUTOPLAY - no safe path found':'AUTOPLAY ACTIVE',20,H-44)}
+    if(hbx&&AP.on&&apEn&&AP.plan&&state==='play'){for(let i=0;i<AP.plan.length;i++){x.fillStyle=AP.plan[i]?'#4f6':'#345';x.fillRect(340+i*10,44,8,6)}}
     if(practice){x.fillStyle='#4f6';x.font='bold 16px Arial';x.fillText('PRACTICE  Z=checkpoint  X=remove',20,testing?52:30)}
     if(COINS){x.fillStyle='#fc2';x.beginPath();x.arc(360,62,9,0,6.28);x.fill();x.fillStyle='#fff';x.font='bold 20px Arial';x.fillText(MAIN.coins+' / '+COINS,376,69)}
     x.fillStyle='#9cf';x.font='14px Arial';x.fillText((cur?cur.name+'   ':'')+P.mode.toUpperCase()+(P.mini?' MINI':'')+(P.d?' DUAL':'')+(P.mir?' MIRROR':'')+'  '+(+P.sp).toFixed(2)+'x'+(P.gr?'':' ⇑')+'   Best '+best+'%',20,H-20);
@@ -1033,15 +1071,34 @@ function drawPlayer(pl,sx,by){
   const ms=pl.mini?.6:1,A=pl.id?IC.b:IC.a,Bc=pl.id?IC.a:IC.b;
   x.save();x.translate(sx+B/2,by-B*ms/2);x.scale(ms,ms);
   if(FX){x.shadowColor=A;x.shadowBlur=12}
-  if(!pl.gr&&(pl.mode==='ship'||pl.mode==='ufo'))x.scale(1,-1);
+  if(!pl.gr&&(pl.mode==='ship'||pl.mode==='ufo'||pl.mode==='spider'))x.scale(1,-1);
   x.rotate(pl.rot||0);x.lineJoin='round';x.strokeStyle='#000';x.lineWidth=3;
   if(pl.mode==='ship')drawShip(A,Bc);
   else if(pl.mode==='ball'){x.fillStyle=grd(A,-20,20);x.beginPath();x.arc(0,0,20,0,6.28);x.fill();x.stroke();x.fillStyle=grd(Bc,-12,12);x.beginPath();x.arc(0,0,12,0,6.28);x.fill();x.fillStyle='#000';x.fillRect(-2,-16,4,10);x.fillRect(-2,6,4,10)}
   else if(pl.mode==='ufo'){x.fillStyle=grd(Bc,-6,14);x.beginPath();x.ellipse(0,4,22,10,0,0,6.28);x.fill();x.stroke();x.fillStyle=grd(A,-18,6);x.beginPath();x.arc(0,-6,12,0,6.28);x.fill();x.stroke();
     x.fillStyle='rgba(255,255,255,.45)';x.beginPath();x.ellipse(-4,-10,4,2.5,-.5,0,6.28);x.fill()}
   else if(pl.mode==='wave')drawWave(A,Bc);
+  else if(pl.mode==='spider')drawSpider(A,Bc,pl);
   else cube(A,Bc);
   x.restore();
+}
+// Spider icon: round body, glowing eyes and 8 animated legs that scuttle while it runs on a surface
+function drawSpider(A,Bc,pl){
+  const t=performance.now()/85,run=pl&&pl.pg!==false?1:.25;
+  x.lineCap='round';
+  for(let pass=0;pass<2;pass++){
+    x.strokeStyle=pass?Bc:'#000';x.lineWidth=pass?3:6;
+    for(let i=0;i<4;i++){
+      const hx=-13+i*8.7,dir=i<2?-1:1,ph=t+i*1.7,sw=Math.sin(ph)*5*run,lift=Math.max(0,Math.cos(ph))*5*run;
+      x.beginPath();x.moveTo(hx,4);x.lineTo(hx+dir*9+sw*.4,-1);x.lineTo(hx+dir*17+sw,20-lift);x.stroke();
+    }
+  }
+  x.lineWidth=3;x.strokeStyle='#000';
+  x.fillStyle=grd(A,-17,13);x.beginPath();x.ellipse(0,2,19,15,0,0,6.283);x.fill();x.stroke();
+  x.fillStyle=grd(Bc,-6,12);x.beginPath();x.ellipse(0,7,10,6,0,0,6.283);x.fill();
+  x.fillStyle='#000';x.beginPath();x.ellipse(-6,-4,5,6,.2,0,6.283);x.ellipse(6,-4,5,6,-.2,0,6.283);x.fill();
+  x.fillStyle='#fff';x.beginPath();x.arc(-5,-5,2,0,6.283);x.arc(7,-5,2,0,6.283);x.fill();
+  x.fillStyle='#000';x.beginPath();x.moveTo(-5,8);x.lineTo(-2,13);x.lineTo(0,8);x.moveTo(0,8);x.lineTo(2,13);x.lineTo(5,8);x.fill();
 }
 function drawShip(A,Bc){
   const s=IC.sh;
@@ -1098,17 +1155,18 @@ function cube(A,Bc){
   else{x.fillRect(-10,-8,8,8);x.fillRect(4,-8,8,8);x.fillRect(-10,6,22,4)}
 }
 function drawPrev(){
-  const pc=$('prev').getContext('2d'),sv=x;x=pc;pc.clearRect(0,0,360,72);pc.fillStyle='#10131a';pc.fillRect(0,0,360,72);
-  pc.strokeStyle='#345';pc.lineWidth=2;pc.beginPath();pc.moveTo(0,64);pc.lineTo(360,64);pc.stroke();
+  const pc=$('prev').getContext('2d'),sv=x;x=pc;pc.clearRect(0,0,440,72);pc.fillStyle='#10131a';pc.fillRect(0,0,440,72);
+  pc.strokeStyle='#345';pc.lineWidth=2;pc.beginPath();pc.moveTo(0,64);pc.lineTo(440,64);pc.stroke();
   drawPlayer({mode:'cube',gr:true,rot:0,id:0},14,64);drawPlayer({mode:'ship',gr:true,rot:-.15,id:0},84,64);
-  drawPlayer({mode:'wave',gr:true,rot:-Math.PI/4,id:0},160,64);drawPlayer({mode:'ball',gr:true,rot:.3,id:0},226,64);drawPlayer({mode:'ufo',gr:true,rot:0,id:0},292,64);x=sv}
+  drawPlayer({mode:'wave',gr:true,rot:-Math.PI/4,id:0},160,64);drawPlayer({mode:'ball',gr:true,rot:.3,id:0},226,64);drawPlayer({mode:'ufo',gr:true,rot:0,id:0},292,64);
+  drawPlayer({mode:'spider',gr:true,rot:0,id:0},366,64);x=sv}
 // ---------- EDITOR ----------
 const TL=[
   {id:'sel',n:'Select'},{id:'era',n:'Erase'},{id:'fill',n:'Rect Block',t:'b',fill:1},{id:'fs',n:'Spike Row',t:'s',fill:1},
   {id:'b',n:'Block',t:'b'},{id:'hb',n:'Half Block',t:'b',hh:.5},{id:'mb',n:'Moving Blk',t:'b',mvT:1},
   {id:'s',n:'Spike',t:'s'},{id:'v',n:'MiniSpike',t:'v'},{id:'w',n:'Saw',t:'w'},
   {id:'p',n:'Pad',t:'p'},{id:'o',n:'Orb',t:'o'},{id:'d',n:'Dash Orb',t:'d'},
-  {id:'gs',n:'Ship',t:'g',m:'ship'},{id:'gc',n:'Cube',t:'g',m:'cube'},{id:'gb',n:'Ball',t:'g',m:'ball'},{id:'gu',n:'UFO',t:'g',m:'ufo'},{id:'gw',n:'Wave',t:'g',m:'wave'},
+  {id:'gs',n:'Ship',t:'g',m:'ship'},{id:'gc',n:'Cube',t:'g',m:'cube'},{id:'gb',n:'Ball',t:'g',m:'ball'},{id:'gu',n:'UFO',t:'g',m:'ufo'},{id:'gw',n:'Wave',t:'g',m:'wave'},{id:'gsp',n:'Spider',t:'g',m:'spider'},
   {id:'gbl',n:'Grav Blue',t:'g',m:'gdn'},{id:'gye',n:'Grav Yellow',t:'g',m:'gru'},{id:'gg',n:'Grav Green',t:'g',m:'grav'},
   {id:'mon',n:'Mirror On',t:'mi',m:'on'},{id:'mof',n:'Mirror Off',t:'mi',m:'off'},
   {id:'szm',n:'Mini',t:'sz',m:'mini'},{id:'szn',n:'Normal',t:'sz',m:'norm'},
@@ -1120,17 +1178,17 @@ const TL=[
   {id:'dring',n:'Ring',t:'dc',k:'ring'},{id:'dsaw',n:'Skull Saw',t:'dc',k:'saw',sp:1},{id:'deye',n:'Eye',t:'dc',k:'eye'},{id:'dchev',n:'Chevron',t:'dc',k:'chev'},{id:'dln',n:'Chain/Line',t:'dc',k:'ln',sh:3},
   {id:'dstar',n:'Star',t:'dc',k:'star'},{id:'dhex',n:'Hexagon',t:'dc',k:'hex'},{id:'dcross',n:'Cross',t:'dc',k:'cross'},{id:'darr',n:'Arrow',t:'dc',k:'arrow'},{id:'dgear',n:'Gear',t:'dc',k:'gear'},
   {id:'dbolt',n:'Bolt',t:'dc',k:'bolt'},{id:'dmoon',n:'Moon',t:'dc',k:'moon'},{id:'dglow',n:'Glow Orb',t:'dc',k:'glow'},{id:'dbars',n:'EQ Bars',t:'dc',k:'bars'},
-  {id:'dheart',n:'Heart',t:'dc',k:'heart'},{id:'dspir',n:'Spiral',t:'dc',k:'spiral'},{id:'dgrid',n:'Grid Panel',t:'dc',k:'grid'},{id:'dtext',n:'Text',t:'dc',k:'text'},
+  {id:'dheart',n:'Heart',t:'dc',k:'heart'},{id:'dspir',n:'Spiral',t:'dc',k:'spiral'},{id:'dgrid',n:'Grid Panel',t:'dc',k:'grid'},{id:'dtext',n:'Text',t:'dc',k:'text'},{id:'dweb',n:'Spider Web',t:'dc',k:'web'},
   {id:'tbg',n:'BG Color',t:'tr',m:'bg'},{id:'tfl',n:'Flash',t:'tr',m:'flash'},{id:'tsh',n:'Shake',t:'tr',m:'shake'},{id:'tzm',n:'Zoom',t:'tr',m:'zoom'},
   {id:'tbg2',n:'BG Bottom',t:'tr',m:'bg2'},{id:'tgr',n:'Ground Col',t:'tr',m:'ground'},{id:'tgl',n:'Ground Line',t:'tr',m:'gline'},{id:'ttl',n:'Tilt',t:'tr',m:'tilt'},
   {id:'tti',n:'Tint',t:'tr',m:'tint'},{id:'tpt',n:'BG Pattern',t:'tr',m:'pattern'},{id:'tbs',n:'BG Speed',t:'tr',m:'bgspeed'},{id:'tvg',n:'Vignette',t:'tr',m:'vig'},
   {id:'thu',n:'Hue Cycle',t:'tr',m:'hue'},{id:'tsk',n:'Shockwave',t:'tr',m:'shock'},{id:'tfg',n:'Fog',t:'tr',m:'fog'},{id:'tbm',n:'Beams',t:'tr',m:'beams'},
   {id:'tas',n:'Ash',t:'tr',m:'ash'},{id:'tch',n:'Chroma',t:'tr',m:'chroma'},{id:'tbp',n:'BPM',t:'tr',m:'bpm'},{id:'ttx',n:'Text Pop',t:'tr',m:'text'},
   {id:'aus',n:'AutoStart',t:'as'},{id:'aue',n:'AutoStop',t:'ae'}];
-const CATS=[['Tools',['sel','era','fill','fs']],['Blocks',['b','hb','mb']],['Hazards',['s','v','w']],['Pads & Orbs',['p','o','d']],['Mode Portals',['gs','gc','gb','gu','gw']],
+const CATS=[['Tools',['sel','era','fill','fs']],['Blocks',['b','hb','mb']],['Hazards',['s','v','w']],['Pads & Orbs',['p','o','d']],['Mode Portals',['gs','gc','gb','gu','gw','gsp']],
   ['Gravity Portals',['gbl','gye','gg']],['Speed Portals',['sp1','sp2','sp3','sp4','sp5']],['Mirror / Size / Dual',['mon','mof','szm','szn','dlo','dlf']],['Teleport',['tpi','tpo']],['Modifiers',['n']],
   ['Auto-play (testing)',['aus','aue']],
-  ['Decoration (no collision)',['dtri','dfang','ddia','dsq','dring','dsaw','deye','dchev','dln','dstar','dhex','dcross','darr','dgear','dbolt','dmoon','dglow','dbars','dheart','dspir','dgrid','dtext']],
+  ['Decoration (no collision)',['dtri','dfang','ddia','dsq','dring','dsaw','deye','dchev','dln','dstar','dhex','dcross','darr','dgear','dbolt','dmoon','dglow','dbars','dheart','dspir','dgrid','dtext','dweb']],
   ['Color / Screen triggers',['tbg','tbg2','tgr','tgl','tfl','tsh','tzm','ttl','tti','tfg','tvg','tsk']],
   ['Background triggers',['tpt','tbs','thu','tbm','tas','tch','tbp','ttx']]];
 const TRC={bg:'#7a2bd0',bg2:'#0a0a30',ground:'#101018',gline:'#66ccff',tint:'#000000',fog:'#8899bb',flash:'#ffffff',shock:'#ffffff',text:'#ffffff'};
@@ -1195,7 +1253,7 @@ function flip(ax){const s=[...ed.sel];if(!s.length)return;snapshot();
       else if(o.rot)o.rot=(360-o.rot)%360;
     }
   });autosave()}
-// rotation now works on EVERY object: spikes turn in 90° steps, blocks swap width/height, everything else (decor, pads, orbs,
+// rotation works on EVERY object: spikes turn in 90° steps, blocks swap width/height, everything else (decor, pads, orbs,
 // portals, saws, coins, ...) rotates freely by the chosen step. With nothing selected it sets the rotation for newly placed objects.
 function rotSel(dir=1){const sel=[...ed.sel];
   if(sel.length){snapshot();sel.forEach(o=>{
@@ -1260,7 +1318,7 @@ addEventListener('mouseup',()=>{const d=ed.drag;if(!d)return;
 cv.addEventListener('wheel',e=>{if(state!=='edit')return;e.preventDefault();
   if(e.ctrlKey)ed.z=Math.max(.35,Math.min(2.2,ed.z*(e.deltaY>0?.9:1.1)));else ed.cx+=(e.deltaY+e.deltaX)*.8/ed.z},{passive:false});
 // ---------- editor panels ----------
-$('pal').innerHTML=CATS.map(([n,ids])=>`<div class="cat">${n}</div><div class="g">`+ids.map(i=>`<button class="b tb" data-id="${i}">${TL.find(a=>a.id===i).n}</button>`).join('')+'</div>').join('')+'<div style="opacity:.6;font-size:11px;margin-top:4px">Color / Power / Speed / Motion in the top bar apply to the selection and to new objects. Tele In jumps the player to the next Tele Out. Portals can be resized with - and =.<br><br>AutoStart: the game plays itself from that block (it searches ahead for a way to survive). AutoStop ends it. Green shading in the editor shows autoplayed sections.<br><br>Triggers: Trig val = strength / amount, Dur = fade time, Pat = pattern, Text = pop-up text, Color = trigger color. Decor and level-look settings are in the right panel.</div>';
+$('pal').innerHTML=CATS.map(([n,ids])=>`<div class="cat">${n}</div><div class="g">`+ids.map(i=>`<button class="b tb" data-id="${i}">${TL.find(a=>a.id===i).n}</button>`).join('')+'</div>').join('')+'<div style="opacity:.6;font-size:11px;margin-top:4px">Color / Power / Speed / Motion in the top bar apply to the selection and to new objects. Tele In jumps the player to the next Tele Out. Portals can be resized with - and =.<br><br>Spider portal: in spider mode a tap teleports to the opposite surface (floor, ceiling or the underside of a block). Put hazards on the side the player is on.<br><br>AutoStart: the game plays itself from that block (it plans ahead and re-plans when the path changes). AutoStop ends it. Green shading in the editor shows autoplayed sections. Press H while playing to see the plan.<br><br>Triggers: Trig val = strength / amount, Dur = fade time, Pat = pattern, Text = pop-up text, Color = trigger color. Decor and level-look settings are in the right panel.</div>';
 $('pal').onclick=e=>{const b=e.target.closest('.tb');if(b)setTool(b.dataset.id)};
 const edSel=(types,fn)=>{if(ed.sel.size){snapshot();ed.sel.forEach(o=>{if(types.includes(o.t))fn(o)});autosave()}};
 $('ocol').oninput=e=>{ed.col=e.target.value;edSel(COLT,o=>o.c=ed.col)};
@@ -1304,7 +1362,7 @@ function hbt(){const b=$('mHb');if(b)b.textContent='Hitboxes: '+(hbx?'On':'Off')
 const camt=()=>$('mCam').textContent='Camera zoom: '+CAMN[camI]+' ('+CAMZ[camI]+'x)';
 function buildCards(){
   $('cards').innerHTML=LV.map((l,i)=>{const p=prog[l.n]||{best:0,coins:0,done:0},s=estTime(GEN[i],{spd:1});
-    const cls=l.look==='dark'?' dk':l.n==='Andromeda'?' and':'';
+    const cls=l.look==='dark'?' dk':l.n==='Andromeda'?' and':l.n==='Arachnid'?' spd':'';
     return `<div class="card${cls}" data-i="${i}"><h3>${i+1}. ${l.n}</h3><div style="font-size:12px;opacity:.8">${l.sec.map(s=>s[0]).filter((v,j,a)=>a.indexOf(v)===j).join(' · ')}</div><div style="font-size:12px;color:#9cf">${lenName(s)} · ~${Math.round(s)}s</div><div style="font-size:13px;font-weight:700;color:${DIFC[l.dif]||'#fff'}">${l.dif||''}</div><div class="bar"><i style="width:${p.best}%"></i></div>Best ${p.best}% ${p.done?'✔':''}<br><span style="color:#fc2">● ${p.coins}/3</span></div>`}).join('');
 }
 $('cards').onclick=e=>{const c=e.target.closest('.card');if(c){audio();playLevel(+c.dataset.i)}};
@@ -1353,7 +1411,7 @@ loadLevel(GEN[0],lvMeta(LV[0]));bg=bgT=META.bg;setTool('b');syncMeta();show();
 function frame(ts){
   const dt=Math.min(.05,(ts-last)/1000||0),tn=ts/1000;last=ts;fc++;
   if(state==='menu'){P.x=(ts/1000*SPD*.5)%(60*B);P.y=0;P.rot=0;P.mode='cube';P.gr=true;P.mini=false;P.mir=false;P.d=null}
-  if(state==='play'&&!paused&&AP.on&&apEn){apUsed=true;AP.acc+=dt;if(AP.acc>=1/40){AP.acc=0;apRun()}}
+  if(state==='play'&&!paused&&AP.on&&apEn){apUsed=true;AP.acc+=dt;if(AP.acc>=1/30){AP.acc=0;apRun()}}
   acc+=dt;while(acc>=1/240){if(state==='play'&&!paused)step(1/240);acc-=1/240}
   if(state==='play'&&!paused){
     [P,P.d].forEach((q,k)=>{if(!q)return;const tr=TR[k],A=k?IC.b:IC.a,Bc=k?IC.a:IC.b;
