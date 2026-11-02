@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html><head><meta charset="utf-8"><title>Geometrical Dash 2 - Pulse Update</title>
+<html><head><meta charset="utf-8"><title>Geometrical Dash 1 - Pulse Update</title>
 <meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
 <style>
 html,body{margin:0;height:100%;background:#000;overflow:hidden;touch-action:none;font-family:Arial,sans-serif;color:#fff}
@@ -38,7 +38,7 @@ input[type=number]{width:52px}
 </style></head><body>
 <canvas id="c" width="1280" height="720"></canvas>
 
-<div id="menu" class="ov"><h1>GEOMETRICAL DASH 2</h1><div class="sub">PULSE UPDATE</div>
+<div id="menu" class="ov"><h1>GEOMETRICAL DASH 1</h1><div class="sub">PULSE UPDATE</div>
 <div id="cards" class="rw" style="gap:14px"></div>
 <button class="b big" id="mEdit">Level Editor (new)</button>
 <button class="b big" id="mCont">Continue editing</button>
@@ -212,7 +212,7 @@ function genP(){
   bgc(c);run(4);c+=4;
   return d;
 }
-// Level 5: "darkex" - insane, grey shaded, heavily decorated
+// Level 5: "Darkex" - insane, grey shaded, heavily decorated
 function genDark(){
   const R=rnd(1337),d=[],A=o=>d.push({w:1,h:1,r:0,...o});let c=16,sp=1,coins=0,gi=0;const secs=[];
   const S=(a,y=0,r=0)=>A({t:'s',x:a,y,r}),Bk=(a,y,w,h)=>A({t:'b',x:a,y,w,h}),
@@ -361,7 +361,7 @@ function genAndromeda(){
   }
   return d;
 }
-// Level 7: Arachnid - the spider level. Every tap teleports to the opposite surface, so hazards sit on the side you are on.
+// Level 7: Arachnid - The spider level. Every tap teleports to the opposite surface, so hazards sit on the side you are on.
 function genSpider(){
   const R=rnd(404),d=[],A=o=>d.push({w:1,h:1,r:0,...o});let c=16,sp=1,hue=140,coins=0,top=false;
   const S=(a,y=0,r=0)=>A({t:'s',x:a,y,r}),Bk=(a,y,w,h)=>A({t:'b',x:a,y,w,h}),
