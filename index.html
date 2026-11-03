@@ -1686,4 +1686,133 @@ function frame(ts){
   draw(dt);requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
+  /* ===== GEOMETRICAL DASH: AUTOPLAY v2 + PITCH v2 =====
+   HOW TO USE: paste this whole file into your game's HTML on a new line
+   right BEFORE the final </script> tag. Nothing else needs to change. */
+(()=>{
+const AS=4,HZ=100,KEEP=60,CAP=60,BACK=24;   // 4 physics steps per decision (1/60s), 1.6s look-ahead
+let apAll=false;
+const lum=c=>{const[r,g,b]=hx(c);return(.2126*r+.7152*g+.0722*b)/255};
+const contrast=c=>lum(c)>.55?'#000000':'#ffffff';
+
+// ---------- AUTOPLAY v2 ----------
+// Decisions are made INSIDE the 1/240s physics loop (not on wall-clock time), so the plan and the real game stay in exact sync.
+simAct=function(q,c,pv){P=q;MAIN=q;hold=!!c;if(c&&!pv){q.bf=.12;if(q.d)q.d.bf=.12}
+  for(let s=0;s<AS;s++){simDead=false;simStep(1/240);if(simDead)return false}return true};
+const key=(q,h,n)=>[h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,Math.round(q.y/3),Math.round(q.vy/30),q.sp,q.d?Math.round(q.d.y/3)+'/'+Math.round(q.d.vy/30):'',q.dash>0?1:0,q.coy>0?1:0,q.bf>0?1:0,q.rt>0?1:0,n].join('|');
+function search(sP,sH,dl){
+  let plan=(AP.plan||[]).slice(1),q=clp(sP),prev=sH?1:0;const sn=[],jm=[],pv=[];let fail=-1,over=false;
+  for(let i=0;i<plan.length;i++){sn.push(clp(q));jm.push(J.length);pv.push(prev);if(!simAct(q,plan[i],prev)){fail=i;break}prev=plan[i]}
+  let s;if(fail<0){sn.push(q);jm.push(J.length);pv.push(prev);s=plan.length}else s=Math.max(0,fail-BACK);
+  if(fail>=0||plan.length<KEEP){
+    unwind(jm[s]);const base=J.length;let depth=0;
+    let level=[{q:sn[s],h:pv[s],par:null,ch:null,c:-1,cnt:0,sw:0,dist:sn[s].x}],last=level;
+    while(s+depth<HZ&&level.length){
+      const nx=new Map();
+      for(const nd of level){
+        if(performance.now()>dl){over=true;break}
+        const chain=[];for(let a=nd;a;a=a.par)if(a.ch)chain.push(a.ch);
+        for(let i=chain.length-1;i>=0;i--){const ch=chain[i];for(let j=0;j<ch.length;j+=3)setf(ch[j],ch[j+1],ch[j+2])}
+        for(const c of(nd.h?[1,0]:[0,1])){
+          const n=clp(nd.q),m=J.length;
+          if(simAct(n,c,nd.h)){
+            const ch=[];for(let j=m;j<J.length;j+=3)ch.push(J[j],J[j+1],J[j][J[j+1]]);
+            const nn={q:n,h:c,c,par:nd,ch:ch.length?ch:null,cnt:nd.cnt+ch.length/3,sw:nd.sw+(c!==nd.h?1:0),dist:n.x},k=key(n,c,nn.cnt),o=nx.get(k);
+            if(!o||o.sw>nn.sw)nx.set(k,nn)}
+          unwind(m)}
+        unwind(base)}
+      if(over||!nx.size)break;
+      level=[...nx.values()];
+      if(level.length>CAP){ // keep the smoothest half + an even spread of heights for variety
+        level.sort((a,b)=>a.sw-b.sw);const hf=CAP>>1,keep=level.slice(0,hf),rest=level.slice(hf).sort((a,b)=>a.q.y-b.q.y),st=rest.length/hf;
+        for(let i=0;i<hf;i++)keep.push(rest[Math.floor(i*st)]);level=keep}
+      last=level;depth++}
+    let bs=-1e9,bp=[];
+    for(const nd of last){let sw=0;const pth=[];for(let a=nd;a.par;a=a.par){pth.push(a.c);if(a.par.par&&a.par.c!==a.c)sw++}
+      pth.reverse();const sc=-sw*100-(pth.length&&pth[0]!==pv[s]?25:0);if(sc>bs){bs=sc;bp=pth}}
+    plan=plan.slice(0,s).concat(bp)}
+  return{plan,over}}
+apRun=function(){
+  if(!AP.inStep)return;
+  const sP=P,sM=MAIN,sH=hold;SIM=true;J.length=0;
+  const r=search(sP,sH,performance.now()+16);unwind(0);
+  SIM=false;simDead=false;P=sP;MAIN=sM;hold=sH;
+  AP.bad=r.plan.length<20&&!r.over;AP.plan=r.plan;apSet(r.plan.length?!!r.plan[0]:!!sH)};
+const oStep=step;
+step=function(dt){
+  if(state==='play'&&!paused&&AP.on&&apEn&&!SIM){apUsed=true;if(!(AP.sub>0)){AP.inStep=true;apRun();AP.inStep=false;AP.sub=AS}AP.sub--}
+  oStep(dt)};
+const oReset=reset;
+reset=function(sx){oReset(sx);if(apAll){AP.on=true;apEn=true;AP.plan=[];AP.sub=0}};
+// releasing a key / mouse must not break autoplay's held input
+['keyup','mouseup','touchend'].forEach(ev=>addEventListener(ev,()=>{if(state==='play'&&AP.on&&apEn&&AP.plan&&AP.plan.length)hold=!!AP.plan[0]}));
+{const b=document.createElement('button');b.className='b';b.id='mApAll';$('mAp').after(b);
+ const u=()=>b.textContent='Autoplay whole level: '+(apAll?'On':'Off');u();b.onclick=()=>{apAll=!apAll;u()}}
+
+// ---------- PITCH v2 ----------
+PIT.push(['Pitch Teal','#008080'],['Crimson','#990011'],['Navy','#000044'],['Pitch Lime','#aaff00'],['Pitch Magenta','#ff00ff'],['Gold','#ffcc00'],['Pitch Brown','#331a00'],['Light Grey','#bbbbbb'],['Deep Violet','#1a0033'],['Ice','#cceeff']);
+$('lpit').innerHTML='<option value="">(none - normal look)</option>'+PIT.map((p,i)=>`<option value="${i}">${p[0]}</option>`).join('');
+$('opre').innerHTML='<option value="">(none)</option>'+PIT.map(p=>`<option value="${p[1]}">${p[0]}</option>`).join('');
+// one click: background, ground, blocks, spikes, saws all go flat in one pitch color (edges auto-contrast). "(none)" restores the normal look.
+$('lpit').onchange=e=>{snapshot();
+  if(e.target.value==='')Object.assign(META,{look:'none',bgd:'v',bgs:'grid',vig:1,pulse:.09,gc:'',glc:'',blc:'',ble:'',spc:'',spe:'',bg2:''});
+  else{const c=PIT[+e.target.value][1],f=contrast(c);Object.assign(META,{bg:c,bg2:c,bgd:'s',look:'pitch',bgs:'none',vig:0,pulse:0,gc:c,glc:f,blc:c,ble:f,spc:c,spe:f})}
+  syncMeta();bg=bgT=META.bg;autosave();e.target.blur()};
+TL.push({id:'tpall',n:'Pitch ALL',t:'tr',m:'pitchall'},{id:'tpoff',n:'Pitch OFF',t:'tr',m:'unpitch'});
+TRL.pitchall='PA';TRL.unpitch='PO';TRC.pitchall='#000000';
+$('pal').insertAdjacentHTML('afterbegin','<div class="cat">Pitch v2 (Color box = pitch color, Trig val 2 = inverted objects)</div><div class="g"><button class="b tb" data-id="tpall">Pitch ALL</button><button class="b tb" data-id="tpoff">Pitch OFF</button></div>');
+const oFire=fire;
+fire=function(o,ins){
+  if(SIM)return;const m=o.m,du=+o.dur||0,rt=du>0?4/du:3,F=FXS;
+  if(m==='pitchall'){const c0=o.c||'#000000',ec=contrast(c0),inv=+o.v===2,fl=inv?ec:c0,ed2=inv?c0:ec;
+    bgT=c0;F.b2T=c0;F.pat='none';setN('pul',0,rt,ins);setN('vig',0,rt,ins);
+    F.gcT=c0;F.glT=ec;F.blcT=fl;F.bleT=ed2;F.spcT=fl;F.speT=ed2;
+    if(ins){bg=c0;F.b2=c0;F.gc=c0;F.gl=ec;F.blc=fl;F.ble=ed2;F.spc=fl;F.spe=ed2}return}
+  if(m==='unpitch'){bgT=META.bg;F.b2T=META.bg2||'';F.pat=META.bgs;F.gcT=META.gc||'';F.glT=META.glc||'';F.blcT=META.blc||'';F.bleT=META.ble||'';F.spcT=META.spc||'';F.speT=META.spe||'';
+    setN('pul',META.pulse,rt,ins);setN('vig',META.vig,rt,ins);
+    if(ins){bg=bgT;F.b2=F.b2T;F.gc=F.gcT;F.gl=F.glT;F.blc=F.blcT;F.ble=F.bleT;F.spc=F.spcT;F.spe=F.speT}return}
+  oFire(o,ins)};
+// saws follow the spike colors, per-object opacity works
+const oDraw=drawObj;
+drawObj=function(o,sx,by,t,E){
+  x.globalAlpha=o.al||1;const C=typeof cf==='function'?cf():{};
+  if(o.t==='w'&&!o.c&&(C.spc||C.spe)){
+    x.save();x.translate(sx+20,by-20);x.rotate(t*8);x.beginPath();
+    for(let i=0;i<16;i++){const r=i%2?12:21,a=i*Math.PI/8;x.lineTo(Math.cos(a)*r,Math.sin(a)*r)}
+    x.closePath();x.fillStyle=C.spc||'#222';x.fill();x.strokeStyle=C.spe||'#f55';x.lineWidth=2;x.stroke();x.beginPath();x.arc(0,0,5,0,6.28);x.stroke();x.restore()}
+  else oDraw(o,sx,by,t,E);
+  x.globalAlpha=1};
+// per-object pitch buttons (right panel)
+$('opf').parentElement.insertAdjacentHTML('afterend','<div class="rw"><button class="b" id="opit">Pitch selected</button><button class="b" id="opita">Pitch ALL objects</button><button class="b" id="opitx">Un-pitch selected</button></div>');
+const pit=o=>{o.pf=1;if(!o.c)o.c=ed.col||'#000000';o.ec=contrast(o.c);delete o.c2};
+$('opit').onclick=()=>edSel(['b','s','v','w'],pit);
+$('opita').onclick=()=>{snapshot();ed.data.forEach(o=>{if('bsvw'.includes(o.t))pit(o)});autosave()};
+$('opitx').onclick=()=>edSel(['b','s','v','w'],o=>{delete o.pf;delete o.c;delete o.c2;delete o.ec});
+
+// ---------- NEW LEVEL: Void Walker (pitch showcase) ----------
+function genVoid(){
+  const R=rnd(9001),d=[],A=o=>d.push({w:1,h:1,r:0,...o});let c=16,sp=1,coins=0;
+  const S=(a,y=0,r=0)=>A({t:'s',x:a,y,r}),Bk=(a,y,w,h)=>A({t:'b',x:a,y,w,h}),port=(t,m,a,y=0,h=3)=>A({t,m,x:a,y,h}),
+    coin=(a,y)=>{if(coins<3){A({t:'n',x:a,y});coins++}},setSp=v=>{if(v!==sp){port('sp',v,c);c+=5;sp=v}},mode=m=>{port('g',m,c);c+=8},
+    tail=w=>Math.round((w+2+R()*1.6)*sp),
+    PA=(col,v)=>{A({t:'tr',m:'pitchall',x:c,y:0,c:col,v});A({t:'tr',m:'flash',x:c+1,y:0,c:'#ffffff'});A({t:'tr',m:'shake',x:c+1,y:0,v:.4})};
+  const cu=[a=>{S(a);return 2},a=>{S(a);S(a+1);return 3},a=>{S(a);S(a+1);S(a+2);A({t:'o',x:a+1,y:1.6,m:2});return 4},a=>{Bk(a,0,3,1);S(a+3);return 5},a=>{A({t:'w',x:a});return 2},a=>{Bk(a,0,6,1);S(a+3,1);return 7}];
+  const run=n=>{for(let i=0;i<n;i++){const a=c,w=cu[R()*cu.length|0](a);c+=tail(w)}};
+  const ball=n=>{for(let i=0;i<n;i++){const top=i%2,a=c;top?S(a,8,2):S(a);c+=Math.round(6.2*sp)}};
+  const corr=(n,gp,cn)=>{const mx=9-gp;let f=0;for(let i=0;i<n;i++){const a=c+i*2;
+    if(i>1&&i<n-2)f=Math.max(0,Math.min(mx,f+(R()*3|0)-1));else if(i>=n-2)f=Math.max(0,f-1);
+    if(f>0)Bk(a,0,2,f);if(mx-f>0)Bk(a,9-(mx-f),2,mx-f);if(cn&&i===(n>>1))coin(a,f+gp/2-.5)}c+=n*2};
+  PA('#000000');c+=8;coin(c,2.2);run(6);
+  PA('#ff0000');setSp(1.24);run(8);
+  PA('#ffffff');mode('ship');corr(20,4,1);c+=3;mode('cube');
+  PA('#0000ff',2);mode('ball');ball(6);port('g','gdn',c,6);mode('cube');
+  PA('#000000',2);setSp(1);mode('wave');corr(22,6);c+=2;mode('cube');
+  PA('#ff0000',2);setSp(1.24);port('mi','on',c);c+=8;run(7);port('mi','off',c);c+=8;
+  PA('#ffffff',2);run(6);c+=4;A({t:'tr',m:'unpitch',x:c,y:0});run(4);c+=8;return d}
+LV.push({n:'Void Walker',dif:'Insane',bg:'#000000',hue:0,bpm:176,bgs:'none',look:'pitch',
+  meta:{bg2:'#000000',bgd:'s',vig:0,pulse:0,gc:'#000000',glc:'#ffffff',blc:'#000000',ble:'#ffffff',spc:'#000000',spe:'#ffffff'},
+  sec:[['cube'],['ship'],['ball'],['wave'],['mirror']]});
+GEN.push(genVoid());
+if(state==='menu')show();
+})();
 </script></body></html>
