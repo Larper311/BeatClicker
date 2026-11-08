@@ -2263,4 +2263,60 @@ LV.push({n:'Void Walker',dif:'Insane',bg:'#000000',hue:0,bpm:176,bgs:'none',look
 GEN.push(genVoid());
 if(state==='menu')show();
 })();
+
+  /* ===== GEOMETRICAL DASH: AUTOPLAY v3 (exact planner) =====
+   HOW TO USE: paste this block at the VERY END of the script, after the AUTOPLAY v2 + PITCH v2 block,
+   just BEFORE </script>. It is self-contained (defines its own simStep / apSet) and replaces apRun. */
+(()=>{
+const AS=4,            // physics steps per decision - MUST match the AS inside the v2 block (4)
+  HZ=130,              // how many decisions to plan ahead (130 x 1/60s = ~2.2 seconds)
+  REPL=70,             // when fewer than this many decisions are left, extend / re-plan
+  MAXN=60000,TLIM=45,  // search limits per re-plan (nodes, milliseconds)
+  DT=1000/240;
+// Lasers use the wall clock. While planning I give the game a fake clock that runs exactly in step with the simulated
+// future, so the planner knows where every laser will be.
+const rn=performance.now.bind(performance);let fk=0,uf=false,bs=0;
+try{performance.now=()=>uf?fk:rn()}catch(e){}
+const key=(q,h,n)=>[h,q.mode,q.gr?1:0,q.mini?1:0,q.mir?1:0,Math.round(q.x/4),Math.round(q.y/2),Math.round(q.vy/20),q.sp,
+  q.d?Math.round(q.d.y/2)+'/'+Math.round(q.d.vy/20):'',q.dash>0?1:0,Math.round(q.coy*60),Math.round(q.bf*60),Math.round((q.rt||0)*60),n].join('|');
+// local helpers so this block does not depend on anything else being defined
+function simStep(dt){const M=P;MAIN=M;sub(dt);if(simDead)return;if(M.d){const D=M.d;D.x=M.x;P=D;sub(dt);P=M}}
+function apSet(h){if(h){if(!hold){hold=true;P.bf=.12;if(P.d)P.d.bf=.12}}else hold=false}
+// one decision = hold/release for AS physics steps, run on the EXACT same physics as the real game
+function act(q,c,pv,d){
+  P=q;MAIN=q;hold=!!c;if(c&&!pv){q.bf=.12;if(q.d)q.d.bf=.12}
+  for(let s=0;s<AS;s++){fk=bs+(d*AS+s)*DT;simDead=false;simStep(1/240);if(simDead)return false}
+  return true}
+// Depth-first search with backtracking + memory of dead-end states. It does not use a beam, so it never throws away the
+// only survivable path. It first tries the previous plan, then "do nothing" (or keep the current input in ship/wave/swing).
+function planner(sP,sH){
+  const old=AP.plan.slice(),plan=new Array(HZ).fill(0),failed=new Set(),t0=rn();
+  let nodes=0,bestD=-1,best=[],abort=false,reach=false,endD=0;
+  const cont=q=>q.mode==='ship'||q.mode==='wave'||q.mode==='swing';
+  SIM=true;J.length=0;uf=true;bs=rn();
+  function dfs(q,prev,d){
+    if(d>bestD){bestD=d;best=plan.slice(0,d)}
+    if(d>=HZ||q.x>=END*B){reach=true;endD=d;return true}
+    const k=key(q,prev,J.length);if(failed.has(k))return false;
+    if(++nodes>MAXN||((nodes&127)===0&&rn()-t0>TLIM)){abort=true;return false}
+    const first=d<old.length?old[d]:(cont(q)?prev:0);
+    for(let i=0;i<2;i++){
+      if(abort)return false;
+      const c=i?1-first:first,n=clp(q),m=J.length;
+      if(act(n,c,prev,d)){plan[d]=c;if(dfs(n,c,d+1))return true}
+      unwind(m)}
+    if(!abort)failed.add(k);
+    return false}
+  dfs(clp(sP),sH?1:0,0);
+  unwind(0);SIM=false;uf=false;simDead=false;
+  return{plan:reach?plan.slice(0,endD):best,bad:!reach&&bestD<HZ*.4}}
+apRun=function(){
+  if(!AP.inStep)return;
+  AP.plan.shift();                                   // the decision that just finished
+  if(AP.plan.length<REPL){
+    const sP=P,sM=MAIN,sH=hold,r=planner(sP,sH);
+    P=sP;MAIN=sM;hold=sH;
+    if(r.plan.length>=AP.plan.length){AP.plan=r.plan;AP.bad=r.bad}}
+  if(AP.plan.length)apSet(!!AP.plan[0])};
+})();
 </script></body></html>
