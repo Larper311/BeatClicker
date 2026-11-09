@@ -2266,7 +2266,7 @@ if(state==='menu')show();
 
   /* ===== GEOMETRICAL DASH: AUTOPLAY v3 (exact planner) =====
    HOW TO USE: paste this block at the VERY END of the script, after the AUTOPLAY v2 + PITCH v2 block,
-   just BEFORE </script>. It is self-contained (defines its own simStep / apSet) and replaces apRun. */
+   just BEFORE <\/script>. It is self-contained (defines its own simStep / apSet) and replaces apRun. */
 (()=>{
 const AS=4,            // physics steps per decision - MUST match the AS inside the v2 block (4)
   HZ=130,              // how many decisions to plan ahead (130 x 1/60s = ~2.2 seconds)
