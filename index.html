@@ -755,7 +755,7 @@ function sub(dt){
     if(P.bf>0){P.vy=JV*.85*gd;P.bf=0;if(!P.id)ring(P.x+20,P.y+hitH/2,'#8f4',24,.3)}
     P.vy-=GR*.7*dt*gd;if(Math.abs(P.vy)>1100)P.vy=Math.sign(P.vy)*1100;
   }else if(P.mode==='swing'){P.vy-=3400*dt*gd;P.vy=Math.max(-560,Math.min(560,P.vy))
-  }else if(P.mode==='wave')P.vy=(hold?1:-1)*S*.85*gd;
+  }else if(P.mode==='wave')P.vy=(hold?1:-1)*S*gd;
   if(dash)P.vy=0;
   P.y+=P.vy*dt;
   let gr=false;
