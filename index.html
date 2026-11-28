@@ -2319,4 +2319,94 @@ apRun=function(){
     if(r.plan.length>=AP.plan.length){AP.plan=r.plan;AP.bad=r.bad}}
   if(AP.plan.length)apSet(!!AP.plan[0])};
 })();
+  /* ===== GEOMETRICAL DASH: NEW LEVEL "ZERO MARGIN" =====
+ HOW TO USE: paste this whole block at the VERY END of the script, after the AUTOPLAY v3 block,
+ right BEFORE the final </script> tag. Nothing else needs to change.
+ (Needs the PITCH v2 block, because it uses the Pitch ALL trigger.)
+ It adds level 11 on the menu: ZERO MARGIN - Extreme. */
+(()=>{
+function genZero(){
+  const R=rnd(66613),d=[],A=o=>d.push({w:1,h:1,r:0,...o});let c=16,sp=1,coins=0;
+  const S=(a,y=0,r=0)=>A({t:'s',x:a,y,r}),Bk=(a,y,w,h)=>A({t:'b',x:a,y,w,h}),
+    port=(t,m,a,y=0,h=3)=>A({t,m,x:a,y,h}),
+    coin=(a,y)=>{if(coins<3){A({t:'n',x:a,y});coins++}},
+    setSp=v=>{if(v!==sp){port('sp',v,c);c+=5;sp=v}},
+    mode=m=>{port('g',m,c);c+=8},
+    tail=w=>Math.round((w+1.5+R()*1.1)*sp),
+    marks=[],
+    TH=col=>{marks.push(c);A({t:'tr',m:'pitchall',x:c,y:0,c:col,v:1});A({t:'tr',m:'flash',x:c+1,y:0,c:'#ffffff'});A({t:'tr',m:'shake',x:c+1,y:0,v:.6})};
+  // ---- cube patterns (return width in cells) ----
+  const cu=[
+    a=>{S(a);return 1},
+    a=>{S(a);S(a+1);return 2},
+    a=>{S(a);S(a+1);S(a+2);A({t:'o',x:a+1,y:1.6,m:2});return 3},
+    a=>{Bk(a,0,3,1);S(a+3);return 4},
+    a=>{A({t:'w',x:a});return 1},
+    a=>{const q=Math.round(4.3*sp);S(a);S(a+q);S(a+2*q);return(2*q+1)/sp},
+    a=>{S(a);S(a+2.2);return 3},                       // landing slot between two spikes
+    a=>{Bk(a,0,5,1);S(a+2,1);S(a+5);return 6}          // spike on a platform, then another right after it
+  ];
+  const run=(n,pool)=>{for(let i=0;i<n;i++){const k=pool?pool[R()*pool.length|0]:R()*cu.length|0,a=c,w=cu[k](a);c+=tail(w)}};
+  const ballRun=n=>{for(let i=0;i<n;i++){const top=i%2,a=c;top?S(a,8,2):S(a);if(R()<.5)top?S(a+1,8,2):S(a+1);c+=Math.round(5.6*sp)}};
+  // ---- corridor: floor + ceiling columns leaving a gap of gp cells. kind = rand / saw / sine ----
+  const cl=(v,mx)=>Math.max(0,Math.min(mx,v));
+  const corr=(n,gp,cw,kind,tooth,cn)=>{
+    const mx=9-gp,mid=Math.round(mx/2);let f=mid,dir=1;
+    for(let i=0;i<n;i++){
+      const a=c+i*cw;
+      if(i>0&&i<n-3){
+        if(kind==='saw'){f=cl(f+dir,mx);if(f>=mx||f<=0)dir=-dir}
+        else if(kind==='sine')f=cl(Math.round(mx/2+Math.sin(i*.9)*mx/2),mx);
+        else f=cl(f+(R()*3|0)-1,mx);
+      }else if(i>=n-3)f=f>mid?f-1:f<mid?f+1:f;
+      const ch=mx-f;
+      if(f>0)Bk(a,0,cw,f);
+      if(ch>0)Bk(a,9-ch,cw,ch);
+      if(tooth&&i>2&&i<n-4&&R()<.4){
+        const sx=a+(cw-1)/2;
+        if(R()<.5&&f>0)S(sx,f,0);else if(ch>0)S(sx,9-ch-1,2);
+      }
+      if(cn&&i===(n>>1))coin(a,f+gp/2-.5);
+    }
+    c+=n*cw;
+  };
+  const wrap=(m,fn)=>{mode(m);fn();c+=3;mode('cube')};
+
+  // 1. warm-up: tight cube spikes, then the speed climbs
+  TH('#000000');c+=8;coin(c,2.2);setSp(1.24);run(7,[0,1,2,3,6]);
+  // 2. first ship corridor, spike teeth, wide enough to be fair
+  TH('#ff0000');setSp(1.24);wrap('ship',()=>corr(26,4,2,'rand',true,true));
+  // 3. cube at 1.5x: every pattern, no breathing room
+  TH('#000000');setSp(1.5);run(9,[0,1,2,3,5,6,7]);
+  // 4. ship zig-zag saw, gap 3: you must flip your input every single column
+  TH('#ffffff');setSp(1.24);wrap('ship',()=>corr(24,3,2,'saw',false,false));
+  // 5. mirrored cube chaos
+  TH('#ff0000');setSp(1.5);port('mi','on',c);c+=8;run(7,[0,1,2,3,6,7]);port('mi','off',c);c+=8;
+  // 6. wave sine corridor
+  TH('#000000');setSp(1.24);wrap('wave',()=>corr(28,3,2,'sine',false,false));
+  // 7. ball: alternating floor/ceiling spikes
+  TH('#ff0000');setSp(1.5);mode('ball');ballRun(7);port('g','gdn',c,6);c+=2;mode('cube');
+  // 8. mini ship, gap 2, 1.5x, random walk: the "impossible" bit
+  TH('#ffffff');setSp(1.5);port('sz','mini',c);c+=6;
+  wrap('ship',()=>corr(24,2,2,'rand',false,true));port('sz','norm',c);c+=6;
+  // 9. UFO ceiling-floor gauntlet
+  TH('#000000');setSp(1.24);wrap('ufo',()=>corr(20,5,2,'rand',false,false));
+  // 10. FINALE: 1.85x ship saw, gap 3.5, columns 2.5 wide
+  TH('#ff0000');setSp(1.85);wrap('ship',()=>corr(24,3.5,2.5,'saw',false,false));
+  // 11. last cube dash and finish
+  TH('#ffffff');setSp(1.5);run(5,[0,1,2,3,5,6]);c+=6;
+  const end=c+8,D=(k,px,py,o)=>d.push({t:'dc',k,x:px,y:py,w:1,h:1,r:0,...o});
+  for(let p=0;p<end;p+=9+R()*4){
+    D('tri',p,3+R()*3,{sw:1.4+R()*2,sh:4+R()*5,a:.13,z:-2,c:'#8a8a8a'});
+    D('ring',p+3,2+R()*5,{s:1.6+R()*1.6,a:.12,z:-1,sp:.5*(R()<.5?1:-1),c:'#8a8a8a'});
+  }
+  marks.forEach(a=>{D('eye',a+3,6,{s:2.2,a:.28,z:-1,c:'#8a8a8a',pu:1});D('eye',a+6.4,6,{s:2.2,sw:-1,a:.28,z:-1,c:'#8a8a8a',pu:1})});
+  return d;
+}
+LV.push({n:'Zero Margin',dif:'Extreme',bg:'#000000',hue:0,bpm:180,bgs:'none',look:'pitch',
+  meta:{bg2:'#000000',bgd:'s',vig:0,pulse:0,gc:'#000000',glc:'#ff1a1a',blc:'#000000',ble:'#ff1a1a',spc:'#ff0000',spe:'#ffffff',mus:2},
+  sec:[['cube'],['ship'],['wave'],['ball'],['ufo']]});
+GEN.push(genZero());
+if(state==='menu')show();
+})();
 </script></body></html>
